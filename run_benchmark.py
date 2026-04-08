@@ -18,7 +18,7 @@ def main():
     args = parser.parse_args()
 
     if args.model:
-        # Find matching combination from COMBINATIONS, or build one with default detector
+        # Find matching combination from COMBINATIONS, or build a new one
         match = [c for c in COMBINATIONS if c["model_name"] == args.model]
         if match:
             combinations = [dict(match[0], device=args.device)]

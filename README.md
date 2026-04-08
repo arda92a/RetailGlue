@@ -46,16 +46,11 @@ retailglue/
 ## Installation
 
 ```bash
-pip install -e .
+# Using uv (recommended)
+uv sync
 
-# For all baseline methods:
-pip install -e ".[all]"
-
-# Individual extras:
-pip install -e ".[roma]"           # RoMa v2
-pip install -e ".[gluestick]"      # GlueStick
-pip install -e ".[lightgluestick]" # LightGlueStick
-pip install -e ".[hf]"            # HuggingFace models
+# With all extras (RoMa, HuggingFace models, dev tools):
+uv sync --all-extras
 ```
 
 ## Quick Start
@@ -63,7 +58,7 @@ pip install -e ".[hf]"            # HuggingFace models
 ### Interactive Interface
 
 ```bash
-python run_interface.py
+uv run python run_interface.py
 ```
 
 Opens a Gradio web interface where you can upload shelf images and select stitching models.
@@ -72,29 +67,10 @@ Opens a Gradio web interface where you can upload shelf images and select stitch
 
 ```bash
 # Run all model combinations
-python run_benchmark.py
+uv run python run_benchmark.py
 
 # Run a specific model
-python run_benchmark.py --model lightglue_dino --device cuda
-
-# Custom data root
-python run_benchmark.py --data-root /path/to/benchmark/data
-```
-
-### Programmatic Usage
-
-```python
-from retailglue.config import get_config
-from retailglue.stitching import ImageStitcher
-
-config = get_config("config.yaml")
-stitcher = ImageStitcher(config=config.stitching)
-
-# Basic stitching (images as numpy arrays, RGB)
-panoramas = stitcher.stitch_images([image1, image2, image3])
-
-# With detection-aware stitching
-panoramas, products = stitcher.stitch_images(images, detections=product_dets)
+uv run python run_benchmark.py --model lightglue_dino --device cuda
 ```
 
 ## Models
@@ -143,15 +119,6 @@ All paths are relative to the repository root and configured in `config.yaml`.
 If DINO weights are not found locally, they will be downloaded from `torch.hub` automatically.
 LightGlue fine-tuned weights are **required** for product-level matching.
 
-## Configuration
-
-Edit `config.yaml` to customize stitching parameters:
-
-- `model_name`: Matching model to use
-- `blending`: Enable/disable adaptive blending
-- `straightening`: Enable/disable panorama straightening
-- `max_allowed_rotation_angle`: Maximum rotation before rejecting homography
-- `min_matching_threshold`: Minimum keypoint matches to accept a pair
 
 ## Citation
 
