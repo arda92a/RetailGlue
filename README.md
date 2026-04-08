@@ -1,8 +1,28 @@
 # RetailGlue: Semantic Product-Level Image Stitching for Retail Shelf Panoramas
 
-**CVPR 2026 Image Matching Workshop**
+<p align="center">
+  <a href="https://arda92a.github.io/retailglue_web/"><b>Project Page</b></a> &nbsp;|&nbsp;
+  <a href="#citation"><b>Paper</b></a> &nbsp;|&nbsp;
+  <a href="#quick-start"><b>Quick Start</b></a>
+</p>
+
+<p align="center">
+  <b>CVPR 2026 &mdash; Image Matching: Local Features & Beyond Workshop</b>
+</p>
+
+<p align="center">
+  <img src="https://arda92a.github.io/retailglue_web/pipeline_small.png" alt="RetailGlue Pipeline" width="100%">
+</p>
+
+<p align="center"><i>Figure 1. RetailGlue replaces ambiguous low-level feature matching with semantic product correspondences for robust retail shelf stitching.</i></p>
 
 > Panoramic shelf images are fundamental to retail analytics, yet constructing them remains a persistent challenge due to repetitive product patterns that confound stitching methods based on local feature matches. We propose a product-level image stitching pipeline that replaces ambiguous low-level feature matching with semantic product correspondences.
+
+## Highlights
+
+- **88.4% F1 Score** with DINOv3 ViT-B/16 — best among all methods
+- **20x speedup** over dense matchers (RoMa v2)
+- **7x speedup** over sparse baselines (DISK + LightGlue)
 
 ## Overview
 
@@ -119,6 +139,19 @@ All paths are relative to the repository root and configured in `config.yaml`.
 If DINO weights are not found locally, they will be downloaded from `torch.hub` automatically.
 LightGlue fine-tuned weights are **required** for product-level matching.
 
+## Qualitative Results
+
+<p align="center">
+  <img src="https://arda92a.github.io/retailglue_web/success_cases.png" alt="Success Case" width="100%">
+</p>
+
+<p align="center"><i>Figure 2. In a densely packed, highly repetitive scene, the local feature matcher (DISK + LightGlue) fails due to structural ambiguity, while RetailGlue successfully resolves identical products for a perfectly aligned panorama.</i></p>
+
+<p align="center">
+  <img src="https://arda92a.github.io/retailglue_web/multi_panorama_stitch.png" alt="Multi-panorama" width="100%">
+</p>
+
+<p align="center"><i>Figure 3. Multi-panorama generation via graph partitioning. Given a challenging 8-frame sequence with insufficient overlap, our pipeline naturally divides the sequence into three geometrically consistent sub-panoramas.</i></p>
 
 ## Citation
 
@@ -134,3 +167,11 @@ LightGlue fine-tuned weights are **required** for product-level matching.
 ## License
 
 Apache 2.0
+
+---
+
+<p align="center">
+  <a href="https://arda92a.github.io/retailglue_web/">Project Page</a> &nbsp;&bull;&nbsp;
+  REM People &nbsp;&bull;&nbsp;
+  CVPR 2026
+</p>
