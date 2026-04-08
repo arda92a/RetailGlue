@@ -142,13 +142,13 @@ LightGlue fine-tuned weights are **required** for product-level matching.
 ## Qualitative Results
 
 <p align="center">
-  <img src="https://arda92a.github.io/retailglue_web/success_cases.png" alt="Success Case" width="100%">
+  <img src="figures/success_cases.svg" alt="Success Case" width="50%">
 </p>
 
 <p align="center"><i>Figure 2. In a densely packed, highly repetitive scene, the local feature matcher (DISK + LightGlue) fails due to structural ambiguity, while RetailGlue successfully resolves identical products for a perfectly aligned panorama.</i></p>
 
 <p align="center">
-  <img src="https://arda92a.github.io/retailglue_web/multi_panorama_stitch.png" alt="Multi-panorama" width="100%">
+  <img src="figures/multi_panorama_stitch.svg" alt="Multi-panorama" width="100%">
 </p>
 
 <p align="center"><i>Figure 3. Multi-panorama generation via graph partitioning. Given a challenging 8-frame sequence with insufficient overlap, our pipeline naturally divides the sequence into three geometrically consistent sub-panoramas.</i></p>
