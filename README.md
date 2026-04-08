@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://arda92a.github.io/retailglue_web/pipeline_small.png" alt="RetailGlue Pipeline" width="100%">
+  <img src="Website/pipeline_small.png" alt="RetailGlue Pipeline" width="100%">
 </p>
 
 <p align="center"><i>Figure 1. RetailGlue replaces ambiguous low-level feature matching with semantic product correspondences for robust retail shelf stitching.</i></p>
