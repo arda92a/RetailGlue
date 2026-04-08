@@ -1,0 +1,446 @@
+% CVPR 2026 Paper Template; see https://github.com/cvpr-org/author-kit
+
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+%%%%%%%%% PAPER TYPE  - PLEASE UPDATE FOR FINAL VERSION
+\usepackage{cvpr}              % To produce the CAMERA-READY version
+% \usepackage[review]{cvpr}      % To produce the REVIEW version
+% \usepackage[pagenumbers]{cvpr} % To force page numbers, e.g. for an arXiv version
+
+% Import additional packages in the preamble file, before hyperref
+\input{preamble}
+
+% It is strongly recommended to use hyperref, especially for the review version.
+% hyperref with option pagebackref eases the reviewers' job.
+% Please disable hyperref *only* if you encounter grave issues, 
+% e.g. with the file validation for the camera-ready version.
+%
+% If you comment hyperref and then uncomment it, you should delete *.aux before re-running LaTeX.
+% (Or just hit 'q' on the first LaTeX run, let it finish, and you should be clear).
+\definecolor{cvprblue}{rgb}{0.21,0.49,0.74}
+\usepackage[pagebackref,breaklinks,colorlinks,allcolors=cvprblue]{hyperref}
+\usepackage{placeins}
+\usepackage{multirow}
+%%%%%%%%% PAPER ID  - PLEASE UPDATE
+\def\paperID{10} % *** Enter the Paper ID here
+\def\confName{CVPR}
+\def\confYear{2026}
+
+%%%%%%%%% TITLE - PLEASE UPDATE
+\title{RetailGlue: Semantic Product-Level Image Stitching for Retail Shelf Panoramas}
+
+%%%%%%%%% AUTHORS - PLEASE UPDATE
+\author{Arda Öztüner \quad İbrahim Şamil Yalçıner \quad Server Calab \quad Ayberk Çelik\\
+REM People\\
+{\tt\small \{arda.oztuner, .., .., ..\}@rempeople.com}
+}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+Panoramic shelf images are fundamental to retail analytics, yet constructing them remains a persistent challenge due to repetitive product patterns that confound stitching methods based on local feature matches. We propose a product-level image stitching pipeline that replaces ambiguous low-level feature matching with semantic product correspondences. A YOLOv11l detector trained on the SKU-110K dataset localizes products on individual frames, while DINOv3 embeddings serve as semantic descriptors for a fine-tuned LightGlue matcher. This detect-then-match approach elegantly avoids the detection quality degradation inherent to local feature matching pipelines. Pairwise correspondences are seamlessly extended to full panorama construction via a graph-based multi-image stitching framework that naturally partitions discontinuous sequences to maintain geometric integrity. To rigorously evaluate our method, we first evaluate its performance on the existing public retail image stitching benchmark, and subsequently introduce RemRetail100\_v2, which will be made publicly available. We evaluate three DINOv3 variants on this new dataset, demonstrating that our semantic approach consistently outperforms baselines relying on local feature matching, with the ViT-B/16 variant achieving an end-to-end stitching F1 score of 88.4\%. Furthermore, by drastically reducing the keypoint search space strictly to semantic product instances, our pipeline achieves a remarkable $20\times$ overall runtime speedup compared to state-of-the-art dense matchers, and a $7\times$ speedup over sparse baselines, offering a highly scalable solution for real-world retail applications.
+\end{abstract}
+
+
+\section{Introduction}
+
+Computer vision techniques have become a transformative force in modern retail management, driving automation in critical applications such as real-time inventory tracking and automated planogram compliance control~\cite{planogram_monitoring,article,Ou2025}. However, effectively auditing an entire retail aisle is practically impossible using isolated, narrow-field captures. To construct a holistic view of the shelf space, sequential images must be seamlessly integrated. 
+
+Consequently, panoramic shelf images are essential for retail analytics, enabling the comprehensive monitoring of product placement, inventory levels, and overall planogram compliance. Image stitching constructs these panoramas from overlapping shelf images. However, recognizing products on retail racks poses unique visual challenges~\cite{sinha2022improveddeeplearningapproach,article_multiModal,lamm2024retail786klargescaledatasetvisual}: identical product packages create highly repetitive patterns, uniform shelves provide limited texture variation, and similar packaging designs lead to ambiguous visual features. The sheer complexity of correctly grouping and matching these comparable retail products has recently established "visual entity matching" as a standalone, highly challenging research problem requiring massive specialized datasets~\cite{lamm2024retail786klargescaledatasetvisual} and robust hybrid matching architectures~\cite{kabadayi2025prismproductretrievalshopping}. 
+
+Classical approaches like SIFT~\cite{sift} and ORB~\cite{orb}, typically combined with brute-force matchers, excel in general scenes with distinct landmarks but fundamentally struggle with the repetitive nature of retail environments. In densely packed shelves, identical product packages, uniform price tags, and parallel shelving structures yield thousands of visually indistinguishable keypoints. Consequently, standard outlier rejection techniques aggressively discard valid correspondences due to the lack of uniqueness, while brute-force assignments become hopelessly entangled across adjacent identical items, ultimately causing geometric verification to fail. {\color{red} While off-the-shelf learned matchers like SuperGlue \cite{superglue} and LightGlue \cite{lightglue} improve robustness by modeling spatial context, they still face a significant domain gap when applied to actual retail shelves.} Because these networks fundamentally operate on low-level local features (such as SuperPoint~\cite{DeTone_2018_CVPR_Workshops} or DISK~\cite{NEURIPS2020_a42a596f}) extracted from limited receptive fields, the sheer density of cloned visual patterns—such as repeated brand logos and packaging textures—overwhelms their contextual reasoning. Ultimately, without higher-level semantic grounding, this underlying low-level feature ambiguity prevents reliable end-to-end panorama construction.
+
+Beyond matching quality, local feature matching pipelines suffer from a fundamental architectural limitation: panoramas are first constructed using off-the-shelf feature matching, and product detection is subsequently performed on the resulting stitched image. As the number of input frames grows, panorama dimensions increase substantially, causing object detection quality to degrade at scale. Our approach deliberately inverts this order: product detection and feature extraction are performed on individual frames, and matching operates directly on these semantic representations, thereby preserving detection quality regardless of the final panorama scale.
+
+Our key insight is that \emph{the products themselves can serve as reliable correspondence points}. Rather than matching ambiguous low-level gradients, we leverage semantic product identities. A YOLOv11l detector, trained on the densely packed SKU-110K dataset~\cite{sku110k}, reliably localizes products, naturally handling the severe occlusions typical of supermarkets. Simultaneously, we utilize DINOv3~\cite{dinov3} for feature extraction. As the state-of-the-art in self-supervised representation learning, DINOv3 generates rich semantic embeddings strictly invariant to viewpoint and lighting shifts, providing the robust semantic descriptor for visually similar packages. Operating at this robust product level effectively avoids the ambiguities of dense retail scenes.
+
+To achieve this, we propose a LightGlue adaptation that shifts the paradigm from feature-level to product-level matching. Detected product centers serve as keypoints, heavily enriched by DINOv3 embeddings acting as their descriptors. To effectively train and comprehensively evaluate this model, we build upon and significantly extend the RemRetail100 dataset, originally introduced by \cite{image_stitching_eval}, to introduce a new benchmark, RemRetail100\_v2. While the foundational dataset provided an initial benchmark for evaluating generic geometric transformations, RemRetail100\_v2 introduces a much larger, rigorously curated collection of heavily annotated product correspondences across highly diverse and dense shelf environments, as visualized in \cref{fig:dataset_pairs}. We fine-tune LightGlue on these retail image pairs to learn product-aware correspondences, followed by homography estimation via RANSAC~\cite{ransac} for robust geometric alignment. Furthermore, we conduct comprehensive experiments over DINOv3 variants of increasing capacity to analyze the impact of descriptor dimensionality on both matching and stitching quality.
+
+In summary, our main contributions are:
+\begin{itemize}
+    \item A novel product-level LightGlue adaptation (\textbf{RetailGlue}) that utilizes DINOv3 semantic embeddings as descriptors, specifically designed for robust retail image stitching. The architectural details of this approach are presented in \cref{sec:method}.
+    
+    \item An inverted detect-then-match pipeline that strictly preserves object detection quality by operating on individual frames rather than large, potentially distorted stitched panoramas. This paradigm shift is discussed in \cref{subsec:overview}.
+    
+    \item A highly optimized, graph-based multi-image stitching framework that provides robustness against discontinuous captures via graph partitioning. By bypassing the computational bottlenecks of local feature matching, it achieves up to a $20\times$ overall runtime speedup. The graph formulation and runtime analysis are detailed in \cref{subsec:stitching} and \cref{subsec:runtime_analysis}.
+    
+    \item The introduction of \textbf{RemRetail100\_v2}, an extended benchmark dataset specifically curated for retail image stitching, which will be made publicly available, featuring heavily annotated product correspondences. The dataset and our quantitative evaluation protocol are introduced in \cref{sec:experiments}.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{dataset_examples.png}
+    \caption{Example image pair from our extended retail dataset. The visualizations display overlapping shelf scenes alongside their manually verified, ground truth product matches.}
+    \label{fig:dataset_pairs}
+\end{figure}
+
+\section{Related Work}
+\subsection{Image Stitching and Feature Matching}
+\label{subsec:related_work}
+
+Image stitching combines overlapping images into panoramic views through feature detection, matching, homography estimation, and blending~\cite{Brown2007AutoPano,Szeliski2007Tutorial}, a field that continues to see rapid advancements~\cite{10979273}, including recent explorations into generative synthesis~\cite{tuli2025generativepanoramicimagestitching}.
+
+\noindent\textbf{Traditional Methods.}
+Handcrafted features like SIFT \cite{sift} and ORB \cite{orb} excel in textured scenes but fail in repetitive retail environments with identical product packages. Recent approaches have attempted to incorporate semantic object boundaries and foreground-aware seam carving to prevent geometric distortion~\cite{Cai_Yang_2025, Jin2025}, yet they still rely on generalized features that struggle in densely packed shelves. 
+
+\noindent\textbf{Learned Methods.}
+Deep learning enables learned detectors (SuperPoint, DISK), sparse matchers (SuperGlue, LoFTR~\cite{Sun_2021_CVPR}, LightGlue, MINIMA), joint point-and-line matching architectures (GlueStick~\cite{Pautrat_2023_ICCV}, LightGlueStick~\cite{Ubingazhibov_2025_ICCV}), robust dense matchers (RoMa~\cite{Edstedt_2024_CVPR}, RoMav2~\cite{edstedt2025romav2harderbetter}), and unsupervised bidirectional warping frameworks~\cite{Jin_2025_ICCV}, a shift that has fundamentally reformed image matching pipelines based on local features~\cite{zhang2025deeplearningreformsimage}.
+LightGlue uses self-attention and cross-attention with adaptive early termination for efficient matching, while emerging architectures further reduce this computational burden~\cite{jamma2025}. Additionally, deep 3D reconstruction techniques have recently been introduced to assist in resolving extreme parallax~\cite{zhu2025pis3rlargeparallaximage}.
+However, training on general natural scenes creates domain gaps when applied to specific environments with highly repetitive visual patterns, such as forests~\cite{pritchard2025forestvo} or retail shelves~\cite{image_stitching_eval}.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{pipeline_small.png}
+    \caption{\textbf{Comparison of image stitching pipelines.} The local feature matching pipeline utilizes low level keypoints and descriptors, whereas \textbf{RetailGlue} employs semantic product identities for robust and efficient alignment.}
+    \label{fig:pipeline}
+\end{figure*}
+
+\subsection{Visual Representation Learning}
+\label{subsec:representation}
+
+\noindent\textbf{Vision Foundation Models.}
+Recent large-scale pretraining paradigms have established foundation models that learn general-purpose visual representations without task-specific supervision. For instance, advanced contrastive frameworks like the SigLIP family~\cite{Zhai_2023_ICCV, tschannen2025siglip2multilingualvisionlanguage} provide state-of-the-art global semantic alignment, fully convolutional architectures like ConvNeXt and its V2 iteration~\cite{Liu_2022_CVPR, Woo_2023_CVPR} deliver highly scalable spatial feature learning via masked autoencoders, and unified frameworks like Meta's SAM series~\cite{Kirillov_2023_ICCV, ravi2024sam2segmentimages, carion2025sam3segmentconcepts} provide zero-shot detection and segmentation driven by concept prompts. However, for tasks requiring precise and dense visual correspondences invariant to severe viewpoint shifts, the DINO lineage has proven exceptionally effective. DINOv3~\cite{dinov3} extends DINO~\cite{zhang2022dinodetrimproveddenoising} and DINOv2~\cite{oquab2024dinov2learningrobustvisual} with improved training strategies, producing rich semantic features transferable across diverse visual tasks, including recent advances in dense multimodal matching~\cite{yang2025distillmatchleveragingknowledgedistillation}. Its hierarchical variants, ViT-S, ViT-B and ViT-L, offer a range of descriptor dimensionalities, enabling systematic analysis of the trade-off between representational capacity and computational cost. We leverage DINOv3 embeddings as product descriptors, exploiting their semantic richness to distinguish visually similar products in dense retail scenes.
+
+\subsection{Retail Image Analysis}
+\label{subsec:retail}
+
+\noindent\textbf{Shelf Monitoring and Detection.}
+Retail vision systems employ object detection for shelf monitoring and planogram compliance. Recent work has demonstrated deep learning-based shelf monitoring pipelines~\cite{Pietrini2024ShelfManagement}, computer vision-based planogram evaluation frameworks~\cite{planogram_monitoring}, and advanced shelf detection methods utilizing segmentation and oriented bounding boxes~\cite{11112148} in retail environments. Goldman~\etal \cite{sku110k} introduced SKU-110K, a large-scale dataset with densely packed retail objects, and proposed detection methods for shelf analysis. Their dataset provides a challenging benchmark for product localization in dense retail environments, enabling the training of robust detectors without relying on domain-specific proprietary data.
+
+\noindent\textbf{Retail Image Stitching Evaluation.}
+Despite the operational importance of panoramic views, existing retail systems primarily operate on isolated single images or assume high-quality panoramas already exist. To bridge this gap, the RemRetail100 dataset~\cite{image_stitching_eval} was recently introduced to establish a quantitative, object detection-based metric for evaluating retail image stitching. By projecting bounding boxes from individual frames onto the stitched panorama via homography matrices and matching them using the Hungarian algorithm based on Intersection over Union, they formulated an objective F1 score without relying on subjective human assessment. Their comprehensive benchmarking demonstrated that deep learning-based matchers---particularly the combination of SuperPoint \cite{DeTone_2018_CVPR_Workshops} and GlueStick \cite{Pautrat_2023_ICCV}---significantly outperform classical extractors like SIFT \cite{sift} and BRISK \cite{6126542} in dense retail environments. However, their study was restricted to evaluating off-the-shelf, low-level local feature matchers on a limited scale of 100 scenes, without proposing a specialized stitching architecture to overcome the fundamental visual ambiguities of repetitive product packaging.
+
+\section{Method}
+\label{sec:method}
+\subsection{Overview}
+\label{subsec:overview}
+
+Our method addresses retail image stitching by leveraging product-level semantic information rather than low-level visual features. \cref{fig:pipeline} illustrates our pipeline.
+
+Given a set of overlapping retail shelf images, we produce a stitched panorama through five stages:
+
+\noindent\textbf{1. Product Detection:} We localize products using a YOLOv11l detector \cite{jocher_ultralytics_yolo_2023} trained on the SKU-110K dataset \cite{sku110k}, obtaining bounding boxes for each product.
+
+\noindent\textbf{2. Product Embedding Extraction:} For each detected product, we extract semantic embeddings using DINOv3, encoding product appearance invariant to viewpoint and lighting.
+
+\noindent\textbf{3. Product-Guided Matching:} Product centers serve as keypoints with DINOv3 embeddings as descriptors. These are fed into our fine-tuned LightGlue model to establish correspondences between products across image pairs.
+
+\noindent\textbf{4. Graph Construction and Refinement:} Pairwise correspondences are used to build a weighted graph over all input frames. The graph is refined by eliminating redundant bridge frames and validating homography consistency across connected components.
+
+\noindent\textbf{5. Panorama Composition:} Each connected component of the refined graph yields one panorama, with images warped and blended in breadth-first order from the center node outward.
+
+\subsection{Product Detection}
+\label{subsec:detection}
+
+Product localization provides semantic anchor points for matching.
+We train a YOLOv11l detector on the SKU-110K dataset, a large-scale benchmark containing densely packed retail objects, providing robust product localization without relying on proprietary training data.
+
+
+\subsection{Product Embedding Extraction}
+\label{subsec:embedding}
+
+For each detected product crop, we extract embeddings using DINOv3~\cite{dinov3}, a self-supervised vision foundation model producing general-purpose visual representations.
+Given a product crop from bounding box $\mathbf{b}_i$, resized to $224 \times 224$, we extract the $[\mathrm{CLS}]$ token features to obtain embedding $\mathbf{e}_i \in \mathbb{R}^{d}$, where $d$ varies by DINOv3 variant: 384 (ViT-S/16), 768 (ViT-B/16) and 1024 (ViT-L/16).
+We fine-tune a separate LightGlue model for each variant to accommodate their different dimensionalities, and conduct an experiment to analyze the effect of descriptor dimensionality on matching and stitching quality.
+
+\subsection{Product-Guided Keypoint Extraction}
+\label{subsec:keypoints}
+
+Unlike local feature matching pipelines that extract thousands of dense, low-level interest points, our approach treats detected products as natural, sparse keypoints. For each product $i$ with bounding box $\mathbf{b}_i$, the center point $\mathbf{p}_i = (x_i + w_i/2, y_i + h_i/2)$ serves as the spatial anchor, while the DINOv3 embedding $\mathbf{e}_i$ serves as the descriptor. The resulting representation for an image is:
+\begin{equation}
+\mathcal{K} = \{(\mathbf{p}_i, \mathbf{e}_i)\}_{i=1}^{N}
+\end{equation}
+where $\mathbf{p}_i \in \mathbb{R}^2$ represents the keypoint location and $\mathbf{e}_i \in \mathbb{R}^{d}$ represents the descriptor. This effectively replaces the DISK output structure with a semantic product-level domain, enabling direct integration into LightGlue.
+
+\subsection{LightGlue Fine-Tuning}
+\label{subsec:lightglue}
+
+\noindent\textbf{Architecture.}
+LightGlue \cite{lightglue} establishes correspondences between keypoint-descriptor pairs through alternating self-attention and cross-attention layers.
+Self-attention enables spatial reasoning within each image, while cross-attention compares descriptors across images.
+A key feature is adaptive early termination: the model predicts confidence scores and stops when sufficient high-confidence matches are found.
+The output is a partial assignment matrix indicating correspondences with confidence scores; unreliable matches are left unassigned.
+
+\noindent\textbf{Adaptation Strategy.}
+Since DINOv3 variants produce descriptors of varying dimensionality (384, 768, 1024), we can not directly initialize LightGlue from pretrained weights on DISK (128-d) or SuperPoint weights (256-d).
+For each variant, we load all layers of LightGlue weights pretrained on DISK features, except the input projection layer, which is randomly initialized to accommodate the target dimensionality.
+This preserves learned attention mechanisms while adapting to DINOv3 features. Through fine-tuning, each model learns to leverage product-level semantic information for matching, transitioning from low-level feature correspondence to product-level correspondence.
+We adopt the original LightGlue loss formulation, which jointly optimizes for matching accuracy and assignment confidence. The objective function is defined as:
+
+\begin{equation}
+    L_{total} = L_{match} + \lambda L_{conf}
+\end{equation}
+
+where $L_{match}$ minimizes the log-likelihood of the predicted assignment matrix relative to ground-truth product correspondences, and $L_{conf}$ regularizes the classification of matchability. This dual optimization ensures that the model effectively aligns semantically similar products across viewpoints while rejecting ambiguous matches inherent to repetitive shelf patterns.
+
+\subsection{Graph-Based Multi-Image Stitching}
+\label{subsec:stitching}
+
+While the previous stages establish pairwise product correspondences,
+multi-image panorama construction requires reasoning over the full set of
+input frames. We formulate this as a graph optimization problem.
+
+\noindent\textbf{Duplicate Frame Filtering.}
+Near-duplicate frames are removed prior to matching using difference hashing. A binary hash $\mathbf{h}_k \in \{0,1\}^{64}$
+is computed for each frame, and frame $I_k$ is discarded if
+\begin{equation}
+    \exists\, j < k : \quad d_H(\mathbf{h}_j, \mathbf{h}_k) \leq \tau_{\mathrm{dup}},
+\end{equation}
+where $d_H$ denotes Hamming distance and $\tau_{\mathrm{dup}} = 5$.
+
+\noindent\textbf{Graph Construction.}
+We construct a weighted directed graph $G = (V, E)$ where each node
+$v_i \in V$ corresponds to an image $I_i$. For every pair $(I_i, I_j)$,
+our fine-tuned LightGlue matcher establishes product-level correspondences
+as described in \cref{subsec:keypoints,subsec:lightglue}. Since product
+detection and feature extraction are already performed as part of the
+recognition pipeline, graph construction introduces no additional
+computational overhead beyond repeated LightGlue inference.
+
+For pairs with sufficient correspondences ($|\mathcal{M}_{ij}| \geq \tau_{\min}$),
+a homography $\mathbf{H}_{i \to j}$ is estimated via USAC-MAGSAC~\cite{Barath_2020_CVPR}
+and validated by rotation, scale, and convexity criteria.
+The matching cost is defined as $c(I_i, I_j) = 1 / |\mathcal{M}_{ij}|$,
+with $c = 1$ when no matches exist.
+A maximum out-degree of $d_{\max} = 4$ per node prevents erroneous
+long-range connections, and both forward and inverse edges are inserted simultaneously.
+
+\noindent\textbf{Graph Refinement.}
+The graph undergoes two refinement stages to improve stitching reliability.
+First, redundant bridge frames—nodes lying between two mutually connected
+neighbours while contributing little unique visual content—are pruned.
+For a candidate bridge node $v_j$ with neighbours $v_i, v_k$, we compute
+the unique pixel fraction:
+\begin{equation}
+    f_{\mathrm{unique}}(v_j) = \frac{|M_j \setminus (M_i \cup M_k)|}{|M_j|},
+\end{equation}
+and remove $v_j$ if $f_{\mathrm{unique}} < 0.2$. This prevents redundant
+frames from introducing alignment errors.
+
+Second, cumulative homographies along shortest paths from each node to the
+component center $v^*$ are validated:
+\begin{equation}
+    \mathbf{H}_{k \to *} = \prod_{(u,w) \in \pi(v_k, v^*)} \mathbf{H}_{u \to w}.
+\end{equation}
+If any cumulative homography fails validation, the weakest edge along the
+path is removed and the component is re-split recursively, ensuring
+geometrically consistent subgraphs.
+
+\noindent\textbf{Panorama Composition.}
+Each connected component yields one panorama. Images are composited in
+breadth-first order from the center node outward.
+
+\section{Experiments}
+\label{sec:experiments}
+\subsection{Dataset}
+\label{subsec:dataset}
+
+We introduce a retail dataset specifically designed for image stitching evaluation.
+The dataset consists of 253 sequences captured in various retail environments, with each sequence containing 2 to 13 overlapping shelf images.
+In total, the dataset comprises 1,172 images covering diverse product arrangements and shelf configurations.
+
+From these sequences, we constructed 919 overlapping image pairs for training and evaluation.
+Ground truth correspondences between products in each pair were established through a semi-automatic process: initial matches were generated using brute-force matching, then manually verified and corrected using a custom annotation interface.
+\cref{fig:dataset_pairs} illustrates representative pairs from our dataset, showcasing these heavily annotated, product-level ground truth matches.
+The final dataset contains 32,958 verified product correspondences across all pairs, with an average of 35.9 matches per pair.
+We split the dataset at the sequence level to prevent data leakage, allocating 70\% of sequences for training, 20\% for validation, and 10\% for testing.
+
+\subsection{Implementation Details}
+\label{subsec:implementation}
+
+\noindent\textbf{Product Detection.}
+We train a YOLOv11l detector using the Ultralytics framework~\cite{jocher_ultralytics_yolo_2023} on the SKU-110K dataset with the following configuration: 100 epochs, input resolution $640 \times 640$, batch size 32, AdamW optimizer, and initialization from COCO pretrained weights.
+
+\noindent\textbf{Product Embeddings.}
+We extract DINOv3 features from the $[\mathrm{CLS}]$ token after processing $224 \times 224$ product crops.
+We evaluate three DINOv3 variants: ViT-S/16 (384-d), ViT-B/16 (768-d) and ViT-L/16 (1024-d).
+
+\noindent\textbf{LightGlue Fine-Tuning.}
+We fine-tune a separate LightGlue model for each DINOv3 variant on a single GPU using the PyTorch framework. Each model is initialized from pretrained DISK weights (v0.1), with the exception of the input projection layer, which is randomly initialized to accommodate the target descriptor dimensionality. All models share a consistent architecture comprising 9 self/cross-attention layers, 4 attention heads, and 256-dimensional internal representations. For training, input images are resized to $640 \times 480$, and product keypoints are padded to a maximum of 400 per image. We optimize the network for 15 epochs using the Adam optimizer with an initial learning rate of $1 \times 10^{-4}$ and a batch size of 8. An exponential learning rate decay (factor of 0.1) is applied starting from the 10th epoch. The training objective combines a negative log-likelihood matching loss with a confidence loss, employing an NLL balancing factor of 0.5 and $\gamma = 1.0$.
+
+\subsection{Matching Quality Evaluation}
+\label{subsec:matching_quality}
+
+To assess LightGlue's ability to establish correct product correspondences before homography estimation, we compute \textbf{Precision} (the ratio of correct matches to all predicted matches), \textbf{Recall} (the ratio of correct matches to all ground truth correspondences), and the \textbf{F1 Score} (their harmonic mean). We evaluate product matching performance across DINOv3 variants of increasing descriptor dimensionality, alongside a DINOv2 baseline to clearly demonstrate the generational improvements in representation learning. For each model, we fine-tune a separate LightGlue adaptation and report precision, recall, and F1 score on the test set.
+
+\begin{table}[htbp]
+\centering
+\caption{Product matching performance for fine-tuned LightGlue models.}
+\label{tab:matching_results}
+\scriptsize 
+\begin{tabular}{lcccc}
+\toprule
+\textbf{DINO Variant} & \textbf{Desc. Dim.} & \textbf{Precision (\%)} & \textbf{Recall (\%)} & \textbf{F1 (\%)} \\
+\midrule
+DINOv2 ViT-S/14 & 384  & 69.7 & 61.5 & 65.3 \\
+DINOv3 ViT-S/16 & 384  & 78.2 & 71.9 & 74.9 \\
+DINOv3 ViT-B/16 & 768  & \textbf{79.1} & 68.4 & 73.4 \\
+DINOv3 ViT-L/16 & 1024 & 76.8 & \textbf{79.4} & \textbf{78.1} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+As shown in \cref{tab:matching_results}, upgrading the foundational representation from DINOv2 to DINOv3 yields a substantial performance leap. Given the exact same ViT-S architecture and 384-dimensional descriptor capacity, DINOv3 improves the F1 score by nearly 10\% (from 65.3\% to 74.9\%) over its predecessor. Among the DINOv3 variants, ViT-L/16 achieves the best overall F1 score of 78.1\% with the highest recall of 79.4\%. Achieving high recall is particularly critical for our multi-image pipeline: while RANSAC effectively filters false positive matches (precision errors), an insufficient absolute number of valid correspondences (recall failures) inherently prevents reliable geometric alignment.
+
+
+\subsection{Stitching Quality Evaluation}
+\label{subsec:stitching_quality}
+
+To quantitatively evaluate stitching quality, following the foundational evaluation protocol established in \cite{image_stitching_eval}, we measure product detection consistency between the stitched panorama and reference detections from individual images. Given a stitched panorama and its constituent images, we run product detection independently on each. Single-image detections are transformed into panorama coordinates via estimated homographies, and occluded detections are pruned. We compute pairwise IoU between stitched and transformed single-image detections, then apply the Hungarian algorithm with an IoU threshold $\tau = 0.4$ for optimal one-to-one matching. Based on these matches, we define True Positives (TP) as matched pairs with $\text{IoU} \geq \tau$, False Positives (FP) as stitched detections lacking a single-image counterpart, and False Negatives (FN) as single-image detections missing from the stitched panorama. We compare against four baseline local feature matching pipelines, where panoramas are first constructed using off-the-shelf extractors, and product detection is subsequently applied to the stitched result. Our method instead performs product detection on individual frames and uses the resulting semantic representations directly for matching, avoiding detection quality degradation on large panoramas.
+
+
+\noindent\textbf{Baselines.}
+We evaluate several baseline matching pipelines, encompassing sparse, dense, and joint feature matching strategies:
+\begin{itemize}
+    \item \textbf{SuperGlue~\cite{Sarlin_2020_CVPR}:} SuperPoint features with SuperGlue GNN-based matcher.
+    \item \textbf{SuperPoint~\cite{DeTone_2018_CVPR_Workshops} + LightGlue \cite{lightglue}:} SuperPoint features with LightGlue matcher.
+    \item \textbf{DISK~\cite{NEURIPS2020_a42a596f} + LightGlue \cite{lightglue}:} DISK features with LightGlue matcher.
+    \item \textbf{MINIMA~\cite{Ren_2025_CVPR} + LightGlue \cite{lightglue}:} Cross-modal fine-tuned SuperPoint features with LightGlue matcher.
+    \item \textbf{RoMav2~\cite{edstedt2025romav2harderbetter}:} A robust dense feature matcher utilizing Markov chain principles and foundation model features.
+    \item \textbf{SuperPoint~\cite{DeTone_2018_CVPR_Workshops} + GlueStick~\cite{Pautrat_2023_ICCV}:} A joint matching architecture that leverages both points and line segments for structural consensus.
+    \item \textbf{SuperPoint \cite{DeTone_2018_CVPR_Workshops} + LightGlueStick~\cite{Ubingazhibov_2025_ICCV}:} An efficient variant of GlueStick integrating LightGlue's adaptive early-termination mechanisms.
+\end{itemize}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{multi_panorama_stitch.png} 
+    \caption{Multi-panorama generation via graph partitioning. Given a challenging 8-frame sequence with insufficient overlap in the middle frames, our graph-based pipeline naturally divides the sequence into three geometrically consistent sub-panoramas rather than forcing a distorted global stitch.}
+    \label{fig:graph_partitioning}
+\end{figure*}
+
+
+\begin{table}[htbp]
+\centering
+\caption{End-to-end stitching quality on RemRetail100\_v2. All RetailGlue variants utilize the SKU-110K YOLO detector.}
+\label{tab:stitching_results}
+\scriptsize 
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cccccc}
+\toprule
+\textbf{Pipeline / Matcher} & \textbf{Dim.} & \textbf{Acc.} & \textbf{Prec.} & \textbf{Rec.} & \textbf{F1} \\
+\midrule
+\multicolumn{6}{l}{\textit{Local feature matching pipelines}} \\
+\midrule
+SuperGlue \cite{superglue}                 & 256 & 78.7 & 89.9 & 85.3 & 86.5 \\
+SuperPoint \cite{DeTone_2018_CVPR_Workshops} + LightGlue \cite{lightglue} & 256 & 80.2 & 89.5 & 86.9 & 87.8 \\
+DISK \cite{NEURIPS2020_a42a596f} + LightGlue \cite{lightglue}       & 128 & 73.9 & 85.9 & 82.5 & 83.3 \\
+MINIMA \cite{Ren_2025_CVPR} + LightGlue \cite{lightglue}      & 256 & 79.8 & 90.1 & 86.6 & 87.6 \\
+RoMav2 \cite{edstedt2025romav2harderbetter}                   & —   & 80.3 & 90.4 & 86.9 & 88.1 \\
+SuperPoint \cite{DeTone_2018_CVPR_Workshops} + GlueStick \cite{Pautrat_2023_ICCV}       & 256 & 79.5 & 89.6 & 86.5 & 87.4 \\
+SuperPoint \cite{DeTone_2018_CVPR_Workshops} + LightGlueStick \cite{Ubingazhibov_2025_ICCV}     & 256 & 80.2 & 90.2 & 87.0 & 87.9 \\
+\midrule
+\multicolumn{6}{l}{\textit{RetailGlue (Ours)}} \\
+\midrule
+DINOv2 ViT-S/14 + LightGlue & 384  & 79.9 & 88.3 & 87.6 & 87.9 \\
+DINOv3 ViT-S/16 + LightGlue & 384  & 79.9 & 89.4 & 87.4 & 88.1 \\
+DINOv3 ViT-B/16 + LightGlue & 768  & 80.7 & 89.4 & 87.7 & \textbf{88.4} \\
+DINOv3 ViT-L/16 + LightGlue & 1024 & 80.2 & 89.7 & 87.4 & 88.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Results.} Table~\ref{tab:stitching_results} reports stitching quality metrics on the test set, including baseline comparisons alongside our DINOv2 and DINOv3 variant ablations. 
+Among the evaluated baselines, the dense matcher RoMav2 achieves the highest performance with an 88.1\% F1 score, closely followed by the joint point-and-line matcher LightGlueStick at 87.9\%. However, as demonstrated in \cref{subsec:runtime_analysis}, this dense accuracy comes at a severe computational cost.
+Our product-level formulation demonstrates immediate benefits even with the previous-generation DINOv2 ViT-S/14, which achieves an 87.9\% F1 score, matching the best sparse/line-based pipelines. Upgrading to the DINOv3 architecture provides a clear advantage, consistently surpassing all baselines. Specifically, DINOv3 ViT-B/16 achieves the best end-to-end F1 score of 88.4\%, with ViT-L/16 close behind at 88.3\%. 
+The consistent improvement across our semantic approaches confirms that product-level representations provide a stronger foundation for robust retail image stitching than low-level feature descriptors.
+
+\subsection{Robustness via Graph Partitioning}
+\label{subsec:graph_robustness}
+
+A significant advantage of our graph-based multi-image stitching framework (\cref{subsec:stitching}) is its robustness to discontinuous sequences. In practical retail environments, scanning a long aisle (e.g., 10+ consecutive frames) can introduce sudden camera movements, severe occlusions, or unintended capture gaps. When the overlap area between adjacent frames drops below a critical threshold, local feature-based stitchers either suffer from catastrophically drift—resulting in severely distorted panoramas—or fail entirely.
+
+Conversely, our method naturally models these discontinuities as weak or missing edges in the correspondence graph. If sufficient product matches can not be established, the graph simply partitions into disconnected components. As illustrated in \cref{fig:graph_partitioning}, rather than forcing an erroneous global alignment, our pipeline outputs multiple, geometrically consistent sub-panoramas. This ensures that the visual integrity of the captured shelf segments is strictly preserved for downstream planogram analysis, even when a single contiguous panorama is impossible.
+
+
+\subsection{Success and Failure Analysis}
+\label{subsec:failure_analysis}
+
+To better understand our operational limits, we qualitatively compare our approach against the DISK+LightGlue baseline using representative sequence examples.
+
+\noindent\textbf{Success Case:} As visualized in \cref{fig:success_case}, our method excels in a densely packed, repetitive scene. While DISK extracts thousands of ambiguous low-level keypoints—often leading to false correspondences across identical adjacent products—our semantic, product-level anchoring inherently resolves these spatial ambiguities, yielding a perfectly aligned stitch.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\linewidth]{success_cases.png} 
+    \caption{\textbf{Success case} in a densely packed, highly repetitive scene. Although the local feature matcher (DISK + LightGlue) fails due to structural ambiguity, our semantic product-level approach successfully resolves identical products, ensuring a perfectly aligned panorama.}
+    \label{fig:success_case}
+\end{figure}
+
+\noindent\textbf{Failure Case:} As illustrated in \cref{fig:failure_case}, our reliance on product bounding boxes creates an edge case in a scene dominated by massive items with narrow capture overlap. If the overlap region contains too few complete products to satisfy RANSAC's minimum geometric constraints, our homography estimation fails. Conversely, pipelines relying on local feature extractors like DISK succeed here by extracting abundant textural keypoints from a single large package.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{failure.png} 
+    \caption{\textbf{Failure case} in a scene dominated by large-scale products with narrow overlap. While our product-level approach lacks sufficient bounding boxes to estimate a reliable homography, the baseline pipeline succeeds by leveraging abundant textural details on the large packaging.}
+    \label{fig:failure_case}
+\end{figure}
+
+\subsection{Computational Efficiency and Runtime Analysis}
+\label{subsec:runtime_analysis}
+
+A critical limitation of local feature-based stitching pipelines in retail applications is their scalability to long shelf sequences. To accurately quantify this, we categorize our pipeline's operations into three concise macro-stages:
+
+\begin{enumerate}
+    \item \textbf{Graph Construction:} Evaluates pairwise image similarities via keypoint matching and homography estimation.
+    \item \textbf{Graph Refinement:} Prunes redundant frames and computes global transformations for independent subgraphs.
+    \item \textbf{Panorama Composition:} Warps images onto the global canvas, applies perspective straightening, and deduplicates product detections.
+\end{enumerate}
+
+Importantly, product localization and descriptor extraction are inherent prerequisites for primary retail analytics tasks and do not introduce additional stitching overhead. The true computational bottleneck lies within the graph construction phase.
+
+To demonstrate scalability, we benchmarked the runtime of our semantic pipeline against both a sparse baseline (DISK + LightGlue) and the state-of-the-art dense matcher (RoMav2) across varying sequence lengths: Short (4 images), Medium (8 images), and Long (13 images).
+
+\begin{table}[h]
+\centering
+\caption{Runtime comparison across different sequence lengths. Times are reported in seconds.}
+\label{tab:runtime}
+\resizebox{\columnwidth}{!}{%
+    \begin{tabular}{llcccc}
+    \toprule
+    \textbf{Length} & \textbf{Method} & \textbf{Graph Const.} & \textbf{Refinement} & \textbf{Composition} & \textbf{Total} \\
+    \midrule
+    \multirow{3}{*}{\textit{Short (4 imgs)}} 
+    & RoMav2 \cite{edstedt2025romav2harderbetter}             & 3.58 & 0.01 & \textbf{0.45} & 4.03 \\
+    & DISK \cite{NEURIPS2020_a42a596f} + LightGlue \cite{lightglue} & 4.85 & 0.03 & 0.68 & 5.56 \\
+    & \textbf{RetailGlue} (ours)    & \textbf{0.48} & \textbf{0.01} & 0.67 & \textbf{1.16} \\
+    \midrule
+    \multirow{3}{*}{\textit{Medium (8 imgs)}} 
+    & RoMav2 \cite{edstedt2025romav2harderbetter}             & 15.12 & \textbf{0.01} & 0.69 & 15.82 \\
+    & DISK \cite{NEURIPS2020_a42a596f} + LightGlue \cite{lightglue} & 9.11 & 0.05 & \textbf{0.60} & 9.76 \\
+    & \textbf{RetailGlue} (ours)   & \textbf{1.58} & 0.03 & 0.73 & \textbf{2.34} \\
+    \midrule
+    \multirow{3}{*}{\textit{Long (13 imgs)}} 
+    & RoMav2 \cite{edstedt2025romav2harderbetter}             & 59.63 & 0.62 & 0.18 & 60.43 \\
+    & DISK \cite{NEURIPS2020_a42a596f} + LightGlue \cite{lightglue}& 20.57 & 0.59 & 0.20 & 21.36 \\
+    & \textbf{RetailGlue} (ours)    & \textbf{2.34} & \textbf{0.51} & \textbf{0.18} & \textbf{3.03} \\
+    \bottomrule
+    \end{tabular}%
+}
+\end{table}
+
+As reported in \cref{tab:runtime}, the Graph Construction stage constitutes the primary computational bottleneck for the evaluated baselines. This is especially evident for the dense matcher RoMav2, which, despite its high accuracy, scales catastrophically as the sequence lengthens—ballooning from 4.03 seconds on a 4-image sequence to an impractical 60.43 seconds on a 13-image sequence. The sparse DISK baseline also struggles, taking over 21 seconds for the long sequence due to the sheer volume of low-level keypoints that must be iteratively matched and filtered by RANSAC.
+
+In stark contrast, our product-level formulation naturally bounds the search space strictly to the number of visible products. By matching these sparse, highly informative semantic entities, our pipeline drastically reduces graph construction time. For the challenging 13-image sequence, our approach completes the entire multi-image stitching process in merely 3.03 seconds. This achieves a remarkable $7\times$ overall speedup compared to the sparse DISK baseline, and a remarkable $20\times$ speedup compared to the dense RoMav2, offering a truly scalable and highly accurate solution for real-world retail applications.
+
+
+
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+While our product-level formulation achieves an 88.4\% F1 score and a $7\times$ runtime speedup, it introduces specific edge-case limitations. As analyzed in \cref{subsec:failure_analysis}, the strict reliance on semantic product bounding boxes means the system requires at least a few fully visible products within the overlapping region to successfully estimate a homography. In highly atypical retail scenarios, such as end-cap displays dominated by a single massive promotional item with minimal capture overlap, the pipeline may lack sufficient geometric constraints. 
+
+\section{Conclusion}
+We presented a product-level retail image stitching pipeline that shifts the paradigm from low-level pixel matching to semantic product identities. By performing object detection on individual frames and leveraging DINOv3 embeddings with a fine-tuned LightGlue matcher, our approach overcomes the visual repetition inherent to dense retail shelves.  Experiments on RemRetail100\_v2, our newly introduced and soon-to-be publicly released benchmark, demonstrate that our ViT-B/16 variant achieves a state-of-the-art end-to-end F1 score of 88.4\%. Beyond accuracy, our formulation resolves scalability bottlenecks of sequential RANSAC alignment, delivering a remarkable $20\times$ overall runtime speedup compared to dense baselines and a $7\times$ speedup over sparse methods. This robust framework provides a practical solution for large-scale retail analytics, significantly extending the quantitative evaluation methodology established by foundational retail stitching research.
+
+{
+    \small
+    \bibliographystyle{ieeenat_fullname}
+    \bibliography{main}
+}
+
+% WARNING: do not forget to delete the supplementary pages from your submission 
+% \input{sec/X_suppl}
+
+\end{document}

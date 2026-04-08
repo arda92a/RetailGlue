@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "retailglue"
+version = "1.0.0"
+description = "RetailGlue: Semantic Product-Level Image Stitching for Retail Shelf Panoramas"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "RetailGlue Authors"},
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "opencv-python>=4.8",
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "networkx>=3.0",
+    "shapely>=2.0",
+    "Pillow>=10.0",
+    "pyyaml>=6.0",
+    "matplotlib>=3.7",
+    "seaborn>=0.13",
+    "pandas>=2.0",
+    "lap>=0.4",
+    "ultralytics>=8.0",
+    "gradio>=4.0",
+]
+
+[project.optional-dependencies]
+roma = ["romav2"]
+gluestick = ["gluestick"]
+lightgluestick = ["lightgluestick"]
+hf = ["transformers>=4.40"]
+all = [
+    "romav2",
+    "gluestick",
+    "lightgluestick",
+    "transformers>=4.40",
+]
+dev = [
+    "pytest>=7.0",
+    "xlsxwriter>=3.0",
+]
+
+[project.scripts]
+retailglue-benchmark = "run_benchmark:main"
+
+[tool.setuptools.packages.find]
+include = ["retailglue*"]
