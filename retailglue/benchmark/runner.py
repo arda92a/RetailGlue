@@ -250,21 +250,20 @@ def run_benchmark(combinations=None, data_root=None, config=None):
 
     for combination in combinations:
         device = combination.get('device', 'cpu')
-        detector_name = combination.get('detector', 'sku_yolo_detector')
 
-        if detector_name not in detectors:
-            weights = det_weights.get(detector_name)
+        if 'sku_yolo_detector' not in detectors:
+            weights = det_weights.get('sku_yolo_detector')
             if weights and os.path.isfile(weights):
-                detectors[detector_name] = create_sku_yolo_detector(weights, device=device)
+                detectors['sku_yolo_detector'] = create_sku_yolo_detector(weights, device=device)
             else:
-                logger.warning(f"Detector weights not found for {detector_name}: {weights}")
+                logger.warning(f"Detector weights not found: {weights}")
                 continue
 
-        detector = detectors[detector_name]
+        detector = detectors['sku_yolo_detector']
         stitcher = create_stitcher(combination, config)
 
         for seq_no in sequences:
-            folder = f"{combination['model_name']}_{combination['device']}_{combination.get('detector', 'sku_yolo_detector')}"
+            folder = f"{combination['model_name']}_{combination['device']}_sku_yolo_detector"
             save_path = os.path.join(data_root, "stitching_results", folder, str(seq_no))
             os.makedirs(save_path, exist_ok=True)
             prefix = f"{seq_no}. Sequence ({folder})"

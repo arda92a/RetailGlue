@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "retailglue"
@@ -32,13 +32,11 @@ dependencies = [
 
 [project.optional-dependencies]
 roma = ["romav2"]
-gluestick = ["gluestick"]
-lightgluestick = ["lightgluestick"]
+# gluestick and lightgluestick are research packages not on PyPI.
+# Install manually from source: https://github.com/cvg/GlueStick
 hf = ["transformers>=4.40"]
 all = [
     "romav2",
-    "gluestick",
-    "lightgluestick",
     "transformers>=4.40",
 ]
 dev = [
@@ -49,5 +47,5 @@ dev = [
 [project.scripts]
 retailglue-benchmark = "run_benchmark:main"
 
-[tool.setuptools.packages.find]
-include = ["retailglue*"]
+[tool.hatch.build.targets.wheel]
+packages = ["retailglue"]

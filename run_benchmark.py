@@ -23,7 +23,7 @@ def main():
         if match:
             combinations = [dict(match[0], device=args.device)]
         else:
-            combinations = [{"model_name": args.model, "device": args.device, "detector": "sku_yolo_detector"}]
+            combinations = [{"model_name": args.model, "device": args.device}]
     else:
         combinations = COMBINATIONS
 
