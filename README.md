@@ -15,6 +15,8 @@
   <b>CVPR 2026 &mdash; Image Matching: Local Features & Beyond Workshop</b>
 </p>
 
+This repository contains the official PyTorch implementation for the paper **"RetailGlue: Semantic Product-Level Image Stitching for Retail Shelf Panoramas"** that will presented at CVPR IMW 2026.
+
 <p align="center">
   <img src="figures/pipeline_retailglue.svg" alt="RetailGlue Pipeline" width="100%">
 </p>
