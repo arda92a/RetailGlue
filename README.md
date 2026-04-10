@@ -130,27 +130,35 @@ uv run python run_benchmark.py --model lightglue_dino --device cuda
 
 ## Model Weights
 
-Place model weights in the following structure:
+SKU-YOLO and fine-tuned LightGlue weights are hosted on Hugging Face: [**arda92/retailglue-model-weights**](https://huggingface.co/arda92/retailglue-model-weights)
+
+```bash
+# Download SKU-YOLO and LightGlue weights
+git lfs install
+git clone https://huggingface.co/arda92/retailglue-model-weights weights
+```
+
+DINO backbone weights are not included — place them in `weights/dino/` manually.
+
+Expected structure:
 
 ```
 weights/
 ├── sku_yolo/
-│   └── best_sku110k.pt              # YOLOv11l trained on SKU-110K
+│   └── best_sku110k.pt              # YOLOv11l trained on SKU-110K 
 ├── dino/
-│   ├── dinov3_vits16_pretrain.pth   # DINOv3 ViT-S/16 (384-dim)
-│   ├── dinov3_vitb16_pretrain.pth   # DINOv3 ViT-B/16 (768-dim)
-│   ├── dinov3_vitl16_pretrain.pth   # DINOv3 ViT-L/16 (1024-dim)
-│   └── dinov2_vits14_pretrain.pth   # DINOv2 ViT-S/14 (384-dim)
+│   ├── dinov3_vits16_pretrain.pth   # DINOv3 ViT-S/16 
+│   ├── dinov3_vitb16_pretrain.pth   # DINOv3 ViT-B/16 
+│   ├── dinov3_vitl16_pretrain.pth   # DINOv3 ViT-L/16 
+│   └── dinov2_vits14_pretrain.pth   # DINOv2 ViT-S/14 
 └── lightglue/
-    ├── lightglue_dino.pth           # Fine-tuned for DINOv3 ViT-S (input_dim=384)
-    ├── lightglue_dino_vitb.pth      # Fine-tuned for DINOv3 ViT-B (input_dim=768)
-    ├── lightglue_dino_vitl.pth      # Fine-tuned for DINOv3 ViT-L (input_dim=1024)
-    └── lightglue_dinov2.pth         # Fine-tuned for DINOv2 ViT-S (input_dim=384)
+    ├── lightglue_dino.pth           # Fine-tuned for DINOv3 ViT-S 
+    ├── lightglue_dino_vitb.pth      # Fine-tuned for DINOv3 ViT-B 
+    ├── lightglue_dino_vitl.pth      # Fine-tuned for DINOv3 ViT-L 
+    └── lightglue_dinov2.pth         # Fine-tuned for DINOv2 ViT-S 
 ```
 
 All paths are relative to the repository root and configured in `config.yaml`.
-If DINO weights are not found locally, they will be downloaded from `torch.hub` automatically.
-LightGlue fine-tuned weights are **required** for product-level matching.
 
 ## Qualitative Results
 
