@@ -7,6 +7,11 @@
 </p>
 
 <p align="center">
+  <b>Arda Öztüner &nbsp;&bull;&nbsp; Ayberk Çelik &nbsp;&bull;&nbsp; İbrahim Şamil Yalçıner &nbsp;&bull;&nbsp; Server Calap</b><br>
+  <i>REM People</i>
+</p>
+
+<p align="center">
   <b>CVPR 2026 &mdash; Image Matching: Local Features & Beyond Workshop</b>
 </p>
 
