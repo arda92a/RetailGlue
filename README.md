@@ -63,6 +63,12 @@ retailglue/
 │   ├── stitcher.py          # Core stitching engine (graph-based multi-panorama)
 │   ├── blender.py           # Adaptive distance-transform blending
 │   └── transforms.py        # Homography-based detection transformation
+├── training/
+│   ├── __init__.py           # Training module
+│   ├── dataset.py            # Product pairs dataset with train/val/test splits
+│   ├── losses.py             # NLL loss with focal weighting
+│   ├── metrics.py            # Matching recall, precision, AP
+│   └── trainer.py            # Training loop with mixed precision & checkpointing
 └── benchmark/
     ├── runner.py             # Benchmark orchestrator
     ├── evaluation.py         # IOU matching, Hungarian assignment
@@ -159,6 +165,40 @@ LightGlue fine-tuned weights are **required** for product-level matching.
 </p>
 
 <p align="center"><i>Figure 3. Multi-panorama generation via graph partitioning. Given a challenging 8-frame sequence with insufficient overlap, our pipeline naturally divides the sequence into three geometrically consistent sub-panoramas.</i></p>
+
+## Dataset
+
+The benchmark images and training dataset (RemRetail100_v2) — including pre-computed DINOv3 embeddings for all three variants (ViT-S/16, ViT-B/16, ViT-L/16) — will be publicly released.
+
+## Training LightGlue
+
+We provide code to fine-tune LightGlue on product-level correspondences. The training dataset includes pre-computed DINO embeddings so no embedding extraction is needed.
+
+### Data Format
+
+The training data follows this structure:
+
+```
+data/training/
+├── images/
+│   ├── shelf_001.jpg
+│   └── ...
+├── annotations/
+│   ├── shelf_001.json      # {"products": [{"product_id": 0, "bbox": [x1,y1,x2,y2], "embedding": [...]}]}
+│   └── ...
+└── matches.json            # {"pairs": [{"image0": "shelf_001", "image1": "shelf_002", "matches": [[0,0], [2,1]]}]}
+```
+
+Each annotation file contains product detections with pre-extracted DINO embeddings. The `matches.json` file defines ground truth product correspondences between image pairs.
+
+### Run Training
+
+```bash
+# DINOv3 ViT-S (384-dim, default)
+python train_lightglue.py --data_dir data/training --input_dim 384
+```
+
+Checkpoints are saved to `outputs/lightglue/` (configurable via `--output_dir`). The best model is saved as `lightglue_best.tar`.
 
 ## Citation
 

@@ -32,6 +32,9 @@ data/
 # Logs
 *.log
 
+# Training outputs
+outputs/
+
 # Jupyter
 .ipynb_checkpoints/
 

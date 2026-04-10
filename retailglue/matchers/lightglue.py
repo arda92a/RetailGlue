@@ -7,6 +7,8 @@ from torch import nn
 import logging
 
 from retailglue.entities import Detection, collect_embeddings
+from retailglue.training.losses import NLLLoss
+from retailglue.training.metrics import matcher_metrics
 
 logger = logging.getLogger("retailglue")
 
@@ -54,6 +56,32 @@ class LearnableFourierPositionalEncoding(nn.Module):
         cosines, sines = torch.cos(projected), torch.sin(projected)
         emb = torch.stack([cosines, sines], 0).unsqueeze(-3)
         return emb.repeat_interleave(2, dim=-1)
+
+
+class TokenConfidence(nn.Module):
+    """Per-token confidence predictor for intermediate layer supervision."""
+
+    def __init__(self, dim):
+        super().__init__()
+        self.token = nn.Sequential(nn.Linear(dim, 1), nn.Sigmoid())
+        self.loss_fn = nn.BCEWithLogitsLoss(reduction="none")
+
+    def forward(self, desc0, desc1):
+        return (
+            self.token(desc0.detach()).squeeze(-1),
+            self.token(desc1.detach()).squeeze(-1),
+        )
+
+    def loss(self, desc0, desc1, la_now, la_final):
+        logit0 = self.token[0](desc0.detach()).squeeze(-1)
+        logit1 = self.token[0](desc1.detach()).squeeze(-1)
+        la_now, la_final = la_now.detach(), la_final.detach()
+        correct0 = la_final[:, :-1, :].max(-1).indices == la_now[:, :-1, :].max(-1).indices
+        correct1 = la_final[:, :, :-1].max(-2).indices == la_now[:, :, :-1].max(-2).indices
+        return (
+            self.loss_fn(logit0, correct0.float()).mean(-1)
+            + self.loss_fn(logit1, correct1.float()).mean(-1)
+        ) / 2.0
 
 
 class Attention(nn.Module):
@@ -231,6 +259,11 @@ class LightGlue(nn.Module):
         "num_heads": 4,
         "flash": False,
         "filter_threshold": 0.0,
+        "checkpointed": False,
+        "loss": {
+            "gamma": 1.0,
+            "nll_balancing": 0.5,
+        },
     }
 
     def __init__(self, conf=None):
@@ -245,22 +278,103 @@ class LightGlue(nn.Module):
         h, n, d = self.conf["num_heads"], self.conf["n_layers"], self.conf["descriptor_dim"]
         self.transformers = nn.ModuleList([TransformerLayer(d, h, self.conf["flash"]) for _ in range(n)])
         self.log_assignment = nn.ModuleList([MatchAssignment(d) for _ in range(n)])
+        self.token_confidence = nn.ModuleList([TokenConfidence(d) for _ in range(n - 1)])
+
+        loss_conf = self.conf.get("loss", {})
+        self.loss_fn = NLLLoss(
+            nll_balancing=loss_conf.get("nll_balancing", 0.5),
+            gamma=loss_conf.get("gamma", 0.0),
+        )
 
     def forward(self, data):
         kpts0, kpts1 = data["keypoints0"], data["keypoints1"]
+        b, m, _ = kpts0.shape
+        b, n, _ = kpts1.shape
+
         size0 = data["view0"].get("image_size") if "view0" in data else None
         size1 = data["view1"].get("image_size") if "view1" in data else None
         kpts0 = normalize_keypoints(kpts0, size0).clone()
         kpts1 = normalize_keypoints(kpts1, size1).clone()
+
         desc0 = self.input_proj(data["descriptors0"].contiguous())
         desc1 = self.input_proj(data["descriptors1"].contiguous())
         encoding0 = self.posenc(kpts0)
         encoding1 = self.posenc(kpts1)
+
+        all_desc0, all_desc1 = [], []
         for i in range(self.conf["n_layers"]):
-            desc0, desc1 = self.transformers[i](desc0, desc1, encoding0, encoding1)
+            if self.conf.get("checkpointed", False) and self.training:
+                desc0, desc1 = torch.utils.checkpoint.checkpoint(
+                    self.transformers[i], desc0, desc1, encoding0, encoding1,
+                    use_reentrant=False,
+                )
+            else:
+                desc0, desc1 = self.transformers[i](desc0, desc1, encoding0, encoding1)
+            if self.training or i == self.conf["n_layers"] - 1:
+                all_desc0.append(desc0)
+                all_desc1.append(desc1)
+
+        desc0, desc1 = desc0[..., :m, :], desc1[..., :n, :]
         scores, _ = self.log_assignment[-1](desc0, desc1)
         m0, m1, ms0, ms1 = filter_matches(scores, self.conf["filter_threshold"])
-        return {"matches0": m0, "matches1": m1, "matching_scores0": ms0, "matching_scores1": ms1}
+
+        pred = {
+            "matches0": m0,
+            "matches1": m1,
+            "matching_scores0": ms0,
+            "matching_scores1": ms1,
+            "log_assignment": scores,
+        }
+        if self.training:
+            pred["ref_descriptors0"] = torch.stack(all_desc0, 1)
+            pred["ref_descriptors1"] = torch.stack(all_desc1, 1)
+
+        return pred
+
+    def loss(self, pred, data):
+        """Compute multi-layer training loss with confidence supervision.
+
+        Returns:
+            Tuple of (losses_dict, metrics_dict).
+        """
+        def loss_params(i):
+            la, _ = self.log_assignment[i](
+                pred["ref_descriptors0"][:, i], pred["ref_descriptors1"][:, i]
+            )
+            return {"log_assignment": la}
+
+        N = pred["ref_descriptors0"].shape[1]
+        nll, gt_weights, loss_metrics = self.loss_fn(loss_params(-1), data)
+        losses = {"total": nll, "last": nll.clone().detach(), **loss_metrics}
+
+        sum_weights = 1.0
+        if self.training:
+            losses["confidence"] = 0.0
+
+        loss_gamma = self.conf.get("loss", {}).get("gamma", 1.0)
+
+        for i in range(N - 1):
+            params_i = loss_params(i)
+            nll_i, _, _ = self.loss_fn(params_i, data, weights=gt_weights)
+
+            weight = loss_gamma ** (N - i - 1) if loss_gamma > 0 else i + 1
+            sum_weights += weight
+            losses["total"] = losses["total"] + nll_i * weight
+
+            if self.training:
+                losses["confidence"] += self.token_confidence[i].loss(
+                    pred["ref_descriptors0"][:, i],
+                    pred["ref_descriptors1"][:, i],
+                    params_i["log_assignment"],
+                    pred["log_assignment"],
+                ) / (N - 1)
+
+        losses["total"] /= sum_weights
+        if self.training:
+            losses["total"] = losses["total"] + losses["confidence"]
+
+        metrics = {} if self.training else matcher_metrics(pred, data)
+        return losses, metrics
 
 
 class LightGlueMatcher:

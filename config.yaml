@@ -60,3 +60,46 @@ detector:
 benchmark:
   data_root: data/benchmark
   matching_threshold: 0.4
+
+# ── LightGlue Training ────────────────────────────────────────────────────────
+training:
+  data:
+    data_dir: data/training               # Directory with images/, annotations/, matches.json
+    embedding_dim: 384                     # Must match model.input_dim
+    max_products: 400                      # Max products per view (padded)
+    train_ratio: 0.7
+    val_ratio: 0.2
+    shuffle_seed: 42
+
+  model:
+    input_dim: 384                         # DINOv3 ViT-S: 384, ViT-B: 768, ViT-L: 1024
+    descriptor_dim: 256
+    n_layers: 9
+    num_heads: 4
+    flash: false
+    checkpointed: true
+    filter_threshold: 0.25
+    pretrained_weights: null               # Path to fine-tune from (optional)
+    loss:
+      gamma: 1.0                           # Multi-layer loss decay
+      nll_balancing: 0.5                   # Positive/negative loss balance
+
+  train:
+    seed: 42
+    epochs: 15
+    batch_size: 8
+    num_workers: 4
+    optimizer: adam
+    lr: 1.0e-4
+    lr_schedule:
+      type: exp                            # exp, step, or null
+      on_epoch: true
+      exp_div_10: 10                       # Decay by 10x over 10 epochs
+    eval_every_iter: 50
+    log_every_iter: 50
+    clip_grad: null
+    best_key: loss/total
+    keep_last_checkpoints: 10
+    mixed_precision: null                  # float16 or bfloat16
+    output_dir: outputs/lightglue
+    experiment_name: lightglue
