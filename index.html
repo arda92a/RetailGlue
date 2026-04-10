@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RetailGlue: Semantic Product-Level Image Stitching for Retail Shelf Panoramas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #1a5fa8;
+    --blue-light: #e8f0f9;
+    --blue-mid: #3b7ec8;
+    --text: #1a1a1a;
+    --text-muted: #555;
+    --border: #d8dde6;
+    --bg: #fafbfc;
+    --white: #ffffff;
+    --accent: #c0392b;
+    --mono: 'DM Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  /* ── Header ── */
+  .venue-bar {
+    background: var(--blue);
+    color: white;
+    text-align: center;
+    padding: 7px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  header {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 52px 20px 40px;
+    text-align: center;
+  }
+
+  .paper-id {
+    display: inline-block;
+    background: var(--blue-light);
+    color: var(--blue);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-family: 'Source Serif 4', serif;
+    font-size: clamp(24px, 4vw, 38px);
+    font-weight: 700;
+    line-height: 1.25;
+    max-width: 820px;
+    margin: 0 auto 28px;
+    color: var(--text);
+  }
+
+  h1 span.keyword {
+    color: var(--blue);
+  }
+
+  .authors {
+    font-size: 17px;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .authors a {
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .authors a:hover { text-decoration: underline; }
+
+  .affiliation {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1.5px solid transparent;
+    transition: all 0.18s ease;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--blue);
+    color: white;
+    border-color: var(--blue);
+  }
+  .btn-primary:hover { background: #154d8a; border-color: #154d8a; }
+  .btn-outline {
+    background: white;
+    color: var(--blue);
+    border-color: var(--blue);
+  }
+  .btn-outline:hover { background: var(--blue-light); }
+  .btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  /* ── Layout ── */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+
+  section {
+    padding: 48px 0 0;
+  }
+
+  h2 {
+    font-family: 'Source Serif 4', serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 24px 0 8px;
+    color: var(--text);
+  }
+
+  p {
+    margin-bottom: 14px;
+    color: #2a2a2a;
+    font-size: 15.5px;
+  }
+
+  /* ── Abstract ── */
+  .abstract-box {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--blue);
+    border-radius: 6px;
+    padding: 24px 28px;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--text-muted);
+  }
+
+  /* ── Figure ── */
+  .figure {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 24px 0;
+  }
+  .figure-placeholder {
+    background: linear-gradient(135deg, #e8f0f9 0%, #d0e0f0 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    color: var(--blue);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 60px 20px;
+    text-align: center;
+  }
+  .figure-placeholder svg { opacity: 0.5; }
+  .figure img {
+    width: 100%;
+    display: block;
+  }
+  .figure-caption {
+    padding: 12px 18px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    line-height: 1.55;
+  }
+  .figure-caption strong { color: var(--text); }
+
+  /* ── Stats ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin: 28px 0;
+  }
+  .stat-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 16px;
+    text-align: center;
+  }
+  .stat-number {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--blue);
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .stat-label {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+
+  /* ── Pipeline steps ── */
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 12px;
+    margin: 24px 0;
+  }
+  .pipeline-step {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 14px;
+    position: relative;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: var(--blue);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 50%;
+    margin-bottom: 10px;
+  }
+  .pipeline-step h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--text);
+  }
+  .pipeline-step p {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* ── Table ── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: white;
+  }
+  thead {
+    background: var(--blue);
+    color: white;
+  }
+  thead th {
+    padding: 11px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--blue-light); }
+  tbody td {
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .td-label { font-family: 'DM Sans', sans-serif; }
+  .td-best { color: var(--blue); font-weight: 600; }
+  .section-row td {
+    background: #f0f5fb;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--text-muted);
+    padding: 7px 14px;
+  }
+  .table-caption {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    line-height: 1.55;
+  }
+
+  /* ── BibTeX ── */
+  .bibtex-block {
+    background: #f3f5f8;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 22px;
+    position: relative;
+    margin-top: 16px;
+  }
+  .bibtex-block pre {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: #333;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 12px; right: 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* ── Contributions list ── */
+  .contrib-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+  }
+  .contrib-list li {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    color: #2a2a2a;
+    line-height: 1.6;
+  }
+  .contrib-list li:last-child { border-bottom: none; }
+  .contrib-badge {
+    flex-shrink: 0;
+    background: var(--blue-light);
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 4px;
+    height: fit-content;
+    margin-top: 3px;
+    white-space: nowrap;
+  }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--white);
+    border-top: 1px solid var(--border);
+    padding: 28px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 60px;
+  }
+  footer a { color: var(--blue); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .pipeline { grid-template-columns: 1fr 1fr; }
+    thead th, tbody td { padding: 9px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="venue-bar">Image Matching: Local Features &amp; Beyond &nbsp;·&nbsp; CVPR 2026 Workshop</div>
+
+<header>
+  <div class="paper-id">CVPR 2026 Workshop · Image Matching: Local Features &amp; Beyond</div>
+  <h1>
+    <span class="keyword">RetailGlue</span>: Semantic Product-Level Image Stitching<br>for Retail Shelf Panoramas
+  </h1>
+  <p class="authors">
+    Arda Öztüner &nbsp;&bull;&nbsp;
+    Ayberk Çelik &nbsp;&bull;&nbsp;
+    İbrahim Şamil Yalçıner &nbsp;&bull;&nbsp;
+    Server Calap
+  </p>
+  <p class="affiliation">REM People</p>
+  <div class="links">
+    <a class="btn btn-primary" href="#">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Paper (PDF)
+    </a>
+    <a class="btn btn-outline" href="#">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+      Code (GitHub)
+    </a>
+    <a class="btn btn-outline" href="#">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 4-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+      Dataset
+    </a>
+    <a class="btn btn-outline" href="#">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4"/></svg>
+      Poster
+    </a>
+    <a class="btn btn-outline" href="#">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+      Video
+    </a>
+    <a class="btn btn-outline" href="#">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      arXiv
+    </a>
+  </div>
+</header>
+
+<main>
+
+  <!-- TL;DR stats -->
+  <div class="stats-row" style="margin-top:40px;">
+    <div class="stat-card">
+      <div class="stat-number">88.4%</div>
+      <div class="stat-label">F1 Score (ViT-B/16)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">20×</div>
+      <div class="stat-label">Speedup vs Dense</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">7×</div>
+      <div class="stat-label">Speedup vs Sparse</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">32,958</div>
+      <div class="stat-label">Annotated Correspondences</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">919</div>
+      <div class="stat-label">Image Pairs</div>
+    </div>
+  </div>
+
+  <!-- Abstract -->
+  <section id="abstract">
+    <h2>Abstract</h2>
+    <div class="abstract-box">
+      Panoramic shelf images are fundamental to retail analytics, yet constructing them remains a persistent challenge due to repetitive product patterns that confound stitching methods based on local feature matches. We propose a product-level image stitching pipeline that replaces ambiguous low-level feature matching with semantic product correspondences. A YOLOv11l detector trained on the SKU-110K dataset localizes products on individual frames, while DINOv3 embeddings serve as semantic descriptors for a fine-tuned LightGlue matcher. This detect-then-match approach elegantly avoids the detection quality degradation inherent to local feature matching pipelines. Pairwise correspondences are seamlessly extended to full panorama construction via a graph-based multi-image stitching framework that naturally partitions discontinuous sequences to maintain geometric integrity. We evaluate three DINOv3 variants, demonstrating that our semantic approach consistently outperforms baselines relying on local feature matching, with the ViT-B/16 variant achieving an end-to-end stitching F1 score of <strong>88.4%</strong>. Furthermore, by drastically reducing the keypoint search space to semantic product instances, our pipeline achieves a remarkable <strong>20× overall runtime speedup</strong> compared to state-of-the-art dense matchers, and a <strong>7× speedup</strong> over sparse baselines.
+    </div>
+  </section>
+
+  <!-- Pipeline Figure -->
+  <section id="pipeline">
+    <h2>Method Overview</h2>
+    <p>RetailGlue inverts the conventional detect-after-stitch paradigm. Rather than applying detection to large, potentially distorted panoramas, we detect products on individual frames first and let those semantic identities drive the matching process.</p>
+
+    <div class="figure">
+      <img src="figures/pipeline_small.png" alt="Pipeline comparison">
+      <div class="figure-caption">
+        <strong>Figure 1. Comparison of image stitching pipelines.</strong> The local feature matching pipeline utilizes low-level keypoints and descriptors, whereas <strong>RetailGlue</strong> employs semantic product identities for robust and efficient alignment.
+      </div>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <h4>Product Detection</h4>
+        <p>YOLOv11l trained on SKU-110K localizes products on individual frames.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <h4>Embedding Extraction</h4>
+        <p>DINOv3 [CLS] tokens encode appearance invariant to viewpoint & lighting.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <h4>Product-Guided Matching</h4>
+        <p>Fine-tuned LightGlue establishes correspondences using semantic descriptors.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">4</div>
+        <h4>Graph Construction</h4>
+        <p>Pairwise matches build a weighted graph; redundant bridges are pruned.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">5</div>
+        <h4>Panorama Composition</h4>
+        <p>Connected components yield geometrically consistent panoramas via BFS warping.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contributions -->
+  <section id="contributions">
+    <h2>Contributions</h2>
+    <ul class="contrib-list">
+      <li>
+        <span class="contrib-badge">RetailGlue</span>
+        A novel product-level LightGlue adaptation using DINOv3 semantic embeddings as descriptors, specifically designed for robust retail image stitching.
+      </li>
+      <li>
+        <span class="contrib-badge">Pipeline</span>
+        An inverted detect-then-match pipeline that preserves object detection quality by operating on individual frames rather than large stitched panoramas.
+      </li>
+      <li>
+        <span class="contrib-badge">Graph</span>
+        A graph-based multi-image stitching framework with robustness to discontinuous captures via graph partitioning, achieving up to a 20× runtime speedup.
+      </li>
+      <li>
+        <span class="contrib-badge">Dataset</span>
+        <strong>RemRetail100_v2</strong>: an extended benchmark with 32,958 annotated product correspondences across 919 image pairs, to be made publicly available.
+      </li>
+    </ul>
+  </section>
+
+  <!-- Results: Matching -->
+  <section id="results">
+    <h2>Results</h2>
+    <h3>Product Matching Quality</h3>
+    <p>We evaluate LightGlue fine-tuned with different DINOv3 variants against a DINOv2 baseline. DINOv3 ViT-L/16 achieves the best recall (79.4%), critical for reliable geometric alignment.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>DINO Variant</th>
+            <th>Desc. Dim.</th>
+            <th>Precision (%)</th>
+            <th>Recall (%)</th>
+            <th>F1 (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="td-label">DINOv2 ViT-S/14</td><td>384</td><td>69.7</td><td>61.5</td><td>65.3</td></tr>
+          <tr><td class="td-label">DINOv3 ViT-S/16</td><td>384</td><td>78.2</td><td>71.9</td><td>74.9</td></tr>
+          <tr><td class="td-label">DINOv3 ViT-B/16</td><td>768</td><td><strong>79.1</strong></td><td>68.4</td><td>73.4</td></tr>
+          <tr><td class="td-label">DINOv3 ViT-L/16</td><td>1024</td><td>76.8</td><td class="td-best">79.4</td><td class="td-best">78.1</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-caption"><strong>Table 1.</strong> Product matching performance for fine-tuned LightGlue models. Bold indicates best in column.</p>
+
+    <h3>End-to-End Stitching Quality on RemRetail100_v2</h3>
+    <p>RetailGlue with DINOv3 ViT-B/16 achieves the best end-to-end F1 of <strong>88.4%</strong>, surpassing all local feature matching baselines including the dense matcher RoMav2.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Pipeline / Matcher</th>
+            <th>Dim.</th>
+            <th>Acc.</th>
+            <th>Prec.</th>
+            <th>Rec.</th>
+            <th>F1</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="section-row"><td colspan="6">Local feature matching pipelines (baselines)</td></tr>
+          <tr><td class="td-label">SuperGlue</td><td>256</td><td>78.7</td><td>89.9</td><td>85.3</td><td>86.5</td></tr>
+          <tr><td class="td-label">SuperPoint + LightGlue</td><td>256</td><td>80.2</td><td>89.5</td><td>86.9</td><td>87.8</td></tr>
+          <tr><td class="td-label">DISK + LightGlue</td><td>128</td><td>73.9</td><td>85.9</td><td>82.5</td><td>83.3</td></tr>
+          <tr><td class="td-label">MINIMA + LightGlue</td><td>256</td><td>79.8</td><td>90.1</td><td>86.6</td><td>87.6</td></tr>
+          <tr><td class="td-label">RoMav2</td><td>—</td><td>80.3</td><td>90.4</td><td>86.9</td><td>88.1</td></tr>
+          <tr><td class="td-label">SuperPoint + GlueStick</td><td>256</td><td>79.5</td><td>89.6</td><td>86.5</td><td>87.4</td></tr>
+          <tr><td class="td-label">SuperPoint + LightGlueStick</td><td>256</td><td>80.2</td><td>90.2</td><td>87.0</td><td>87.9</td></tr>
+          <tr class="section-row"><td colspan="6">RetailGlue (Ours)</td></tr>
+          <tr><td class="td-label">DINOv2 ViT-S/14 + LightGlue</td><td>384</td><td>79.9</td><td>88.3</td><td>87.6</td><td>87.9</td></tr>
+          <tr><td class="td-label">DINOv3 ViT-S/16 + LightGlue</td><td>384</td><td>79.9</td><td>89.4</td><td>87.4</td><td>88.1</td></tr>
+          <tr><td class="td-label">DINOv3 ViT-B/16 + LightGlue</td><td>768</td><td>80.7</td><td>89.4</td><td>87.7</td><td class="td-best">88.4</td></tr>
+          <tr><td class="td-label">DINOv3 ViT-L/16 + LightGlue</td><td>1024</td><td>80.2</td><td>89.7</td><td>87.4</td><td>88.3</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-caption"><strong>Table 2.</strong> End-to-end stitching quality on RemRetail100_v2. All RetailGlue variants use the SKU-110K YOLO detector.</p>
+
+    <h3>Runtime Comparison</h3>
+    <p>Product localization and descriptor extraction are inherent prerequisites for retail analytics and add no extra overhead. The graph construction phase is the true bottleneck — and RetailGlue's semantic sparsity makes it negligible.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Sequence</th>
+            <th>Method</th>
+            <th>Graph Const. (s)</th>
+            <th>Refinement (s)</th>
+            <th>Composition (s)</th>
+            <th>Total (s)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="section-row"><td colspan="6">Short (4 images)</td></tr>
+          <tr><td class="td-label">RoMav2</td><td></td><td>3.58</td><td>0.01</td><td>0.45</td><td>4.03</td></tr>
+          <tr><td class="td-label">DISK + LightGlue</td><td></td><td>4.85</td><td>0.03</td><td>0.68</td><td>5.56</td></tr>
+          <tr><td class="td-label"><strong>RetailGlue (ours)</strong></td><td></td><td class="td-best">0.48</td><td class="td-best">0.01</td><td>0.67</td><td class="td-best">1.16</td></tr>
+          <tr class="section-row"><td colspan="6">Medium (8 images)</td></tr>
+          <tr><td class="td-label">RoMav2</td><td></td><td>15.12</td><td>0.01</td><td>0.69</td><td>15.82</td></tr>
+          <tr><td class="td-label">DISK + LightGlue</td><td></td><td>9.11</td><td>0.05</td><td>0.60</td><td>9.76</td></tr>
+          <tr><td class="td-label"><strong>RetailGlue (ours)</strong></td><td></td><td class="td-best">1.58</td><td>0.03</td><td>0.73</td><td class="td-best">2.34</td></tr>
+          <tr class="section-row"><td colspan="6">Long (13 images)</td></tr>
+          <tr><td class="td-label">RoMav2</td><td></td><td>59.63</td><td>0.62</td><td>0.18</td><td>60.43</td></tr>
+          <tr><td class="td-label">DISK + LightGlue</td><td></td><td>20.57</td><td>0.59</td><td>0.20</td><td>21.36</td></tr>
+          <tr><td class="td-label"><strong>RetailGlue (ours)</strong></td><td></td><td class="td-best">2.34</td><td class="td-best">0.51</td><td class="td-best">0.18</td><td class="td-best">3.03</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-caption"><strong>Table 3.</strong> Runtime comparison (seconds). RetailGlue achieves 7× speedup over DISK+LightGlue and 20× over RoMav2 on long sequences.</p>
+  </section>
+
+  <!-- Qualitative -->
+  <section id="qualitative">
+    <h2>Qualitative Results</h2>
+
+    <div class="figure">
+      <img src="figures/success_cases.png" alt="Success case">
+      <div class="figure-caption">
+        <strong>Figure 2. Success case</strong> in a densely packed, highly repetitive scene. Although the local feature matcher (DISK + LightGlue) fails due to structural ambiguity, our semantic product-level approach successfully resolves identical products, ensuring a perfectly aligned panorama.
+      </div>
+    </div>
+
+    <div class="figure">
+      <img src="figures/failure.png" alt="Failure case">
+      <div class="figure-caption">
+        <strong>Figure 3. Failure case</strong> in a scene dominated by large-scale products with narrow overlap. While our product-level approach lacks sufficient bounding boxes to estimate a reliable homography, the baseline pipeline succeeds by leveraging abundant textural details on large packaging.
+      </div>
+    </div>
+
+    <div class="figure">
+      <img src="figures/multi_panorama_stitch.png" alt="Multi-panorama generation via graph partitioning">
+      <div class="figure-caption">
+        <strong>Figure 4. Multi-panorama generation via graph partitioning.</strong> Given a challenging 8-frame sequence with insufficient overlap in the middle frames, our graph-based pipeline naturally divides the sequence into three geometrically consistent sub-panoramas rather than forcing a distorted global stitch.
+      </div>
+    </div>
+  </section>
+
+  <!-- Dataset -->
+  <section id="dataset">
+    <h2>RemRetail100_v2 Dataset</h2>
+    <p>We introduce an extended retail benchmark specifically designed for image stitching evaluation. The dataset will be made publicly available.</p>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-number">253</div><div class="stat-label">Sequences</div></div>
+      <div class="stat-card"><div class="stat-number">1,172</div><div class="stat-label">Total Images</div></div>
+      <div class="stat-card"><div class="stat-number">919</div><div class="stat-label">Image Pairs</div></div>
+      <div class="stat-card"><div class="stat-number">32,958</div><div class="stat-label">Correspondences</div></div>
+      <div class="stat-card"><div class="stat-number">35.9</div><div class="stat-label">Avg Matches/Pair</div></div>
+    </div>
+    <p>Ground truth correspondences were established through a semi-automatic process: initial matches were generated via brute-force matching, then manually verified and corrected using a custom annotation interface. The dataset is split 70/20/10 at the sequence level to prevent data leakage.</p>
+    <div class="figure">
+      <img src="figures/dataset_examples.png" alt="Example image pairs from RemRetail100_v2">
+      <div class="figure-caption">
+        <strong>Figure 5. Example image pairs from RemRetail100_v2.</strong> Visualizations display overlapping shelf scenes alongside their manually verified, ground truth product matches.
+      </div>
+    </div>
+  </section>
+
+  <!-- BibTeX -->
+  <section id="bibtex">
+    <h2>BibTeX</h2>
+    <p>If you find our work useful, please cite:</p>
+    <div class="bibtex-block">
+      <button class="copy-btn" onclick="copyBib()">Copy</button>
+      <pre id="bib-text">@inproceedings{oztuner2026retailglue,
+  title     = {RetailGlue: Semantic Product-Level Image Stitching
+               for Retail Shelf Panoramas},
+  author    = {\"Ozt\"uner, Arda and \c{C}elik, Ayberk and
+               Yal\c{c}{\i}ner, \.{I}brahim \c{S}amil and Calap, Server},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision
+               and Pattern Recognition Workshops (CVPRW) -- Image Matching:
+               Local Features {\&} Beyond},
+  year      = {2026}
+}</pre>
+    </div>
+  </section>
+
+  <!-- Acknowledgements -->
+  <section id="acknowledgements">
+    <h2>Acknowledgements</h2>
+    <p>We thank the open-source communities behind YOLOv11, DINOv3, and LightGlue. The SKU-110K dataset and the RemRetail100 evaluation framework established the foundation for this work.</p>
+  </section>
+
+</main>
+
+<footer>
+  <p>RetailGlue · CVPR 2026 · <a href="mailto:arda.oztuner@rempeople.com">Contact</a> · <a href="#">REM People</a></p>
+  <p style="margin-top:6px; font-size:12px;">Website template inspired by academic project pages.</p>
+</footer>
+
+<script>
+function copyBib() {
+  const text = document.getElementById('bib-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+</script>
+</body>
+</html>
