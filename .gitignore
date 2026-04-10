@@ -26,9 +26,8 @@ Thumbs.db
 weights/
 
 # Benchmark data & results
-data/benchmark/images/
-data/benchmark/stitching_results/
-data/benchmark/ResultsAll.xlsx
+data/
+
 
 # Logs
 *.log
