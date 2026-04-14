@@ -16,10 +16,10 @@ stitching:
   vertical_separation_threshold: 0.60
   unique_frac_threshold: 0.2
   lightglue_weights:
-    lightglue_dinov3_vits: weights/lightglue/lightglue_dino.pth
-    lightglue_dinov3_vitb: weights/lightglue/lightglue_dino_vitb.pth
-    lightglue_dinov3_vitl: weights/lightglue/lightglue_dino_vitl.pth
-    lightglue_dinov2_vits: weights/lightglue/lightglue_dinov2.pth
+    lightglue_dinov3_vits: weights/lightglue/lightglue_dinov3_vits.pth
+    lightglue_dinov3_vitb: weights/lightglue/lightglue_dinov3_vitb.pth
+    lightglue_dinov3_vitl: weights/lightglue/lightglue_dinov3_vitl.pth
+    lightglue_dinov2_vits: weights/lightglue/lightglue_dinov2_vits.pth
   lightglue_ransac_threshold: 10.0
   lightglue_min_matches: 5
   lightglue_min_matching_threshold: 4

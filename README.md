@@ -79,7 +79,7 @@ retailglue/
 ## Installation
 
 ```bash
-# Using uv (recommended)
+# Using uv 
 uv sync
 
 # With all extras (RoMa, HuggingFace models, dev tools):
@@ -103,7 +103,7 @@ Opens a Gradio web interface where you can upload shelf images and select stitch
 uv run python run_benchmark.py
 
 # Run a specific model
-uv run python run_benchmark.py --model lightglue_dino --device cuda
+uv run python run_benchmark.py --model lightglue_dinov3_vits --device cuda
 ```
 
 ## Models
@@ -111,10 +111,10 @@ uv run python run_benchmark.py --model lightglue_dino --device cuda
 ### Core (Our Method)
 | Model | Descriptor | Dim | Description |
 |-------|-----------|-----|-------------|
-| `lightglue_dino` | DINOv3 ViT-S/16 | 384 | Default, fastest |
-| `lightglue_dino_vitb` | DINOv3 ViT-B/16 | 768 | Best F1 (88.4%) |
-| `lightglue_dino_vitl` | DINOv3 ViT-L/16 | 1024 | Largest variant |
-| `lightglue_dinov2` | DINOv2 ViT-S/14 | 384 | DINOv2 baseline |
+| `lightglue_dinov3_vits` | DINOv3 ViT-S/16 | 384 | Default, fastest |
+| `lightglue_dinov3_vitb` | DINOv3 ViT-B/16 | 768 | Best F1 (88.4%) |
+| `lightglue_dinov3_vitl` | DINOv3 ViT-L/16 | 1024 | Largest variant |
+| `lightglue_dinov2_vits` | DINOv2 ViT-S/14 | 384 | DINOv2 baseline |
 
 ### Baselines
 | Model | Type |
@@ -152,10 +152,10 @@ weights/
 │   ├── dinov3_vitl16_pretrain.pth   # DINOv3 ViT-L/16 
 │   └── dinov2_vits14_pretrain.pth   # DINOv2 ViT-S/14 
 └── lightglue/
-    ├── lightglue_dino.pth           # Fine-tuned for DINOv3 ViT-S 
-    ├── lightglue_dino_vitb.pth      # Fine-tuned for DINOv3 ViT-B 
-    ├── lightglue_dino_vitl.pth      # Fine-tuned for DINOv3 ViT-L 
-    └── lightglue_dinov2.pth         # Fine-tuned for DINOv2 ViT-S 
+    ├── lightglue_dinov3_vits.pth    # Fine-tuned for DINOv3 ViT-S 
+    ├── lightglue_dinov3_vitb.pth    # Fine-tuned for DINOv3 ViT-B 
+    ├── lightglue_dinov3_vitl.pth    # Fine-tuned for DINOv3 ViT-L 
+    └── lightglue_dinov2_vits.pth    # Fine-tuned for DINOv2 ViT-S 
 ```
 
 All paths are relative to the repository root and configured in `config.yaml`.
