@@ -203,25 +203,10 @@ Each annotation file contains product detections with pre-extracted DINO embeddi
 
 ```bash
 # DINOv3 ViT-S (384-dim, default)
-python train_lightglue.py --data_dir data/training --input_dim 384
+uv run python train_lightglue.py --data_dir data/training --input_dim 384
 ```
 
 Checkpoints are saved to `outputs/lightglue/` (configurable via `--output_dir`). The best model is saved as `lightglue_best.tar`.
-
-## Citation
-
-```bibtex
-@inproceedings{retailglue2026,
-  title={RetailGlue: Semantic Product-Level Image Stitching for Retail Shelf Panoramas},
-  author={{\"O}zt{\"u}ner, Arda and Yal{\c{c}}{\i}ner, {\.I}brahim {\c{S}}amil and Calab, Server and {\c{C}}elik, Ayberk},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) Workshops},
-  year={2026}
-}
-```
-
-## License
-
-Apache 2.0
 
 ---
 
