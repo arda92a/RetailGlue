@@ -34,12 +34,25 @@
   .venue-bar {
     background: var(--blue);
     color: white;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 7px 20px;
     font-size: 13px;
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    position: relative;
+  }
+  .venue-logo {
+    /* unused */
+    display: none;
+  }
+  .header-logo {
+    position: absolute;
+    left: 24px;
+    top: 24px;
+    height: 52px;
   }
 
   header {
@@ -47,6 +60,7 @@
     border-bottom: 1px solid var(--border);
     padding: 52px 20px 40px;
     text-align: center;
+    position: relative;
   }
 
   .paper-id {
@@ -581,9 +595,12 @@
 </head>
 <body>
 
-<div class="venue-bar">Image Matching: Local Features &amp; Beyond &nbsp;·&nbsp; CVPR 2026 Workshop</div>
+<div class="venue-bar">
+  <span>Image Matching: Local Features &amp; Beyond &nbsp;·&nbsp; CVPR 2026 Workshop</span>
+</div>
 
 <header>
+  <img src="figures/logo.png" alt="REM People" class="header-logo">
   <div class="paper-id">CVPR 2026 Workshop · Image Matching: Local Features &amp; Beyond</div>
   <h1>
     <span class="keyword">RetailGlue</span>: Semantic Product-Level Image Stitching<br>for Retail Shelf Panoramas
