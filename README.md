@@ -1,7 +1,7 @@
 # RetailGlue: Semantic Product-Level Image Stitching for Retail Shelf Panoramas
 
 <p align="center">
-  <a href="https://arda92a.github.io/retailglue_web/"><b>Project Page</b></a> &nbsp;|&nbsp;
+  <a href="https://rempeople.github.io/RetailGlue/"><b>Project Page</b></a> &nbsp;|&nbsp;
   <a href="#citation"><b>Paper</b></a> &nbsp;|&nbsp;
   <a href="#quick-start"><b>Quick Start</b></a>
 </p>
