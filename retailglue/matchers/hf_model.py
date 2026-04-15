@@ -1,4 +1,7 @@
 from __future__ import annotations
+import os
+os.environ.setdefault("HF_HUB_TRUST_REMOTE_CODE", "1")
+
 import torch
 import numpy as np
 import logging
@@ -11,6 +14,37 @@ from transformers import (
 )
 from transformers.models.lightglue.modeling_lightglue import LightGlueKeypointMatchingOutput
 from transformers.models.superpoint.modeling_superpoint import SuperPointKeypointDescriptionOutput
+
+
+def _patch_lightglue_config_for_disk():
+    """Patch LightGlueConfig to accept DISK detector config.
+    transformers 5.x uses @strict from huggingface_hub which validates field
+    types via __validators__. DISK (a remote-code model) produces a DiskConfig
+    that doesn't match the union type `dict | SuperPointConfig | None`.
+    We replace the validator for that field with a permissive one and register
+    DiskConfig in CONFIG_MAPPING so __post_init__ can resolve it.
+    We also patch AutoModelForKeypointDetection.from_config to always pass
+    trust_remote_code=True since LightGlue's __init__ calls it without."""
+    from transformers.models.lightglue.configuration_lightglue import LightGlueConfig
+    from transformers.models.auto import CONFIG_MAPPING
+    from transformers import AutoConfig, AutoModelForKeypointDetection
+
+    # Register DiskConfig so CONFIG_MAPPING["disk"] works in __post_init__
+    disk_cfg = AutoConfig.from_pretrained("stevenbucaille/disk", trust_remote_code=True)
+    CONFIG_MAPPING._extra_content["disk"] = type(disk_cfg)
+
+    # Replace the field validator for keypoint_detector_config with a no-op
+    LightGlueConfig.__validators__["keypoint_detector_config"] = [lambda value: None]
+
+    # Patch from_config to always trust remote code (needed for DISK detector)
+    _orig_from_config = AutoModelForKeypointDetection.from_config.__func__
+
+    @classmethod
+    def _patched_from_config(cls, config, **kwargs):
+        kwargs.setdefault("trust_remote_code", True)
+        return _orig_from_config(cls, config, **kwargs)
+
+    AutoModelForKeypointDetection.from_config = _patched_from_config
 
 HF_MODEL_REGISTRY = {
     "superglue": "magic-leap-community/superglue_outdoor",
@@ -29,27 +63,30 @@ class HFModel:
         self.batch_size = batch_size
         self.last_keypoints = {}
 
+        proc_kwargs = {"size": size} if size is not None else {}
+
         if 'superglue' in model_name:
             repo = HF_MODEL_REGISTRY["superglue"]
-            self.processor = SuperGlueImageProcessor.from_pretrained(repo, size=size)
+            self.processor = SuperGlueImageProcessor.from_pretrained(repo, **proc_kwargs)
             self.model = SuperGlueForKeypointMatching.from_pretrained(repo)
         elif 'lightglue' in model_name:
             if 'superpoint' in model_name:
                 repo = HF_MODEL_REGISTRY["lightglue_superpoint"]
             elif 'disk' in model_name:
+                _patch_lightglue_config_for_disk()
                 repo = HF_MODEL_REGISTRY["lightglue_disk"]
             elif 'minima' in model_name:
                 repo = HF_MODEL_REGISTRY["lightglue_minima"]
             else:
                 raise NotImplementedError(f"Unknown LightGlue variant: {model_name}")
-            self.processor = LightGlueImageProcessor.from_pretrained(repo, size=size)
-            self.model = LightGlueForKeypointMatching.from_pretrained(repo)
+            self.processor = LightGlueImageProcessor.from_pretrained(repo, trust_remote_code=True, **proc_kwargs)
+            self.model = LightGlueForKeypointMatching.from_pretrained(repo, trust_remote_code=True)
         elif 'loftr' in model_name:
             if 'matchanything' in model_name:
                 repo = HF_MODEL_REGISTRY["matchanything_eloftr"]
             else:
                 repo = HF_MODEL_REGISTRY["eloftr"]
-            self.processor = EfficientLoFTRImageProcessor.from_pretrained(repo, size=size)
+            self.processor = EfficientLoFTRImageProcessor.from_pretrained(repo, **proc_kwargs)
             self.model = EfficientLoFTRForKeypointMatching.from_pretrained(repo)
         else:
             raise NotImplementedError(f"Unknown model: {model_name}")
