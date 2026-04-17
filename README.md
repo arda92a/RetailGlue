@@ -182,7 +182,7 @@ All datasets are publicly available on the Hugging Face Hub.
 
 Raw shelf sequence images used for end-to-end stitching evaluation:
 
-🤗 **[arda92/RemRetail100_v2](https://huggingface.co/datasets/arda92/RemRetail100_v2)** · 1,223 images · ~100 sequences
+🤗 **[RemRetail100_v2](https://huggingface.co/datasets/arda92/RemRetail100_v2)** · 1,223 images · 250 sequences
 
 ```bash
 # Populate data/benchmark/images/ for run_benchmark.py
@@ -208,9 +208,9 @@ Three sibling datasets, one per DINOv3 backbone, each containing shelf images to
 
 | Dataset | Backbone | Embedding dim |
 |---|---|---|
-| [arda92/RetailGlue-lightglue-dinov3-vits](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vits) | DINOv3 ViT-S/16 | 384 |
-| [arda92/RetailGlue-lightglue-dinov3-vitb](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitb) | DINOv3 ViT-B/16 | 768 |
-| [arda92/RetailGlue-lightglue-dinov3-vitl](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitl) | DINOv3 ViT-L/16 | 1024 |
+| [RetailGlue-lightglue-dinov3-vits](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vits) | DINOv3 ViT-S/16 | 384 |
+| [RetailGlue-lightglue-dinov3-vitb](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitb) | DINOv3 ViT-B/16 | 768 |
+| [RetailGlue-lightglue-dinov3-vitl](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitl) | DINOv3 ViT-L/16 | 1024 |
 
 Download a dataset and re-materialize the on-disk layout expected by the trainer:
 
