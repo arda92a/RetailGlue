@@ -130,7 +130,7 @@ uv run python run_benchmark.py --model lightglue_dinov3_vits --device cuda
 
 ## Model Weights
 
-SKU-YOLO and fine-tuned LightGlue weights are hosted on Hugging Face: [**arda92/retailglue-model-weights**](https://huggingface.co/arda92/retailglue-model-weights)
+SKU-YOLO and fine-tuned LightGlue weights are hosted on Hugging Face: [**RetailGlue Model Weights**](https://huggingface.co/arda92/retailglue-model-weights)
 
 ```bash
 # Download SKU-YOLO and LightGlue weights
