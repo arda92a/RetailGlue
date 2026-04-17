@@ -621,7 +621,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
       Code (GitHub)
     </a>
-    <a class="btn btn-outline" href="#">
+    <a class="btn btn-outline" href="https://huggingface.co/datasets/arda92/RemRetail100_v2">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 4-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
       Dataset
     </a>
@@ -725,7 +725,7 @@
       </li>
       <li>
         <span class="contrib-badge">Dataset</span>
-        <strong>RemRetail100_v2</strong>: an extended benchmark with 32,958 annotated product correspondences across 919 image pairs, to be made publicly available.
+        <strong>RemRetail100_v2</strong>: an extended benchmark with 32,958 annotated product correspondences across 919 image pairs.
       </li>
     </ul>
   </section>
@@ -920,7 +920,7 @@
   <!-- Dataset -->
   <section id="dataset">
     <h2>RemRetail100_v2 Dataset</h2>
-    <p>We introduce an extended retail benchmark specifically designed for image stitching evaluation. The dataset will be made publicly available.</p>
+    <p>We introduce an extended retail benchmark specifically designed for image stitching evaluation. All data is publicly released on the Hugging Face Hub.</p>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-number">253</div><div class="stat-label">Sequences</div></div>
       <div class="stat-card"><div class="stat-number">1,172</div><div class="stat-label">Total Images</div></div>
@@ -929,6 +929,43 @@
       <div class="stat-card"><div class="stat-number">35.9</div><div class="stat-label">Avg Matches/Pair</div></div>
     </div>
     <p>Ground truth correspondences were established through a semi-automatic process: initial matches were generated via brute-force matching, then manually verified and corrected using a custom annotation interface. The dataset is split 70/20/10 at the sequence level to prevent data leakage.</p>
+
+    <h3>Downloads</h3>
+    <p>The benchmark release is organized into four complementary dataset repositories on Hugging Face:</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th>Contents</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-label">RemRetail100_v2</td>
+            <td>Raw shelf images for end-to-end stitching evaluation</td>
+            <td><a href="https://huggingface.co/datasets/arda92/RemRetail100_v2">RemRetail100_v2</a></td>
+          </tr>
+          <tr>
+            <td class="td-label">LightGlue · DINOv3 ViT-S/16</td>
+            <td>Images + 384-d embeddings + pair matches</td>
+            <td><a href="https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vits">RetailGlue-lightglue-dinov3-vits</a></td>
+          </tr>
+          <tr>
+            <td class="td-label">LightGlue · DINOv3 ViT-B/16</td>
+            <td>Images + 768-d embeddings + pair matches</td>
+            <td><a href="https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitb">RetailGlue-lightglue-dinov3-vitb</a></td>
+          </tr>
+          <tr>
+            <td class="td-label">LightGlue · DINOv3 ViT-L/16</td>
+            <td>Images + 1024-d embeddings + pair matches</td>
+            <td><a href="https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitl">RetailGlue-lightglue-dinov3-vitl</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="figure">
       <img src="figures/dataset_examples.png" alt="Example image pairs from RemRetail100_v2">
       <div class="figure-caption">

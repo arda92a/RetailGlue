@@ -176,34 +176,94 @@ All paths are relative to the repository root and configured in `config.yaml`.
 
 ## Dataset
 
-The benchmark images and training dataset (RemRetail100_v2) — including pre-computed DINOv3 embeddings for all three variants (ViT-S/16, ViT-B/16, ViT-L/16) — will be publicly released.
+All datasets are publicly available on the Hugging Face Hub.
+
+### RemRetail100_v2 — Benchmark Images
+
+Raw shelf sequence images used for end-to-end stitching evaluation:
+
+🤗 **[arda92/RemRetail100_v2](https://huggingface.co/datasets/arda92/RemRetail100_v2)** · 1,223 images · ~100 sequences
+
+```bash
+# Populate data/benchmark/images/ for run_benchmark.py
+uv run python scripts/download_benchmark_dataset.py
+```
+
+Or load directly in Python:
+
+```python
+from datasets import load_dataset
+ds = load_dataset("arda92/RemRetail100_v2", split="train")
+ds[0]["image"]        # PIL.Image
+ds[0]["sequence_id"]  # "seq001"
+ds[0]["frame_index"]  # 1
+```
+
+### LightGlue Training Datasets
+
+Three sibling datasets, one per DINOv3 backbone, each containing shelf images together with pre-computed DINOv3 embeddings and ground-truth product correspondences. Each repository has two configs:
+
+- `frames` — one row per annotated frame with `image`, `product_ids`, `bboxes` (Nx4), `embeddings` (NxD).
+- `pairs` — one row per image pair with `image0`, `image1`, `matches` (Kx2).
+
+| Dataset | Backbone | Embedding dim |
+|---|---|---|
+| [arda92/RetailGlue-lightglue-dinov3-vits](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vits) | DINOv3 ViT-S/16 | 384 |
+| [arda92/RetailGlue-lightglue-dinov3-vitb](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitb) | DINOv3 ViT-B/16 | 768 |
+| [arda92/RetailGlue-lightglue-dinov3-vitl](https://huggingface.co/datasets/arda92/RetailGlue-lightglue-dinov3-vitl) | DINOv3 ViT-L/16 | 1024 |
+
+Download a dataset and re-materialize the on-disk layout expected by the trainer:
+
+```bash
+uv run python scripts/download_lightglue_dataset.py \
+    --repo-id arda92/RetailGlue-lightglue-dinov3-vits \
+    --output-dir data/lightglue/lightglue_dinov3_vits
+```
+
+Or stream directly via `datasets`:
+
+```python
+from datasets import load_dataset
+frames = load_dataset("arda92/RetailGlue-lightglue-dinov3-vits", "frames", split="train")
+pairs  = load_dataset("arda92/RetailGlue-lightglue-dinov3-vits", "pairs",  split="train")
+```
 
 ## Training LightGlue
 
-We provide code to fine-tune LightGlue on product-level correspondences. The training dataset includes pre-computed DINO embeddings so no embedding extraction is needed.
+We provide code to fine-tune LightGlue on product-level correspondences. The training dataset ships with pre-computed DINOv3 embeddings — no embedding extraction is needed.
 
 ### Data Format
 
-The training data follows this structure:
+After running `download_lightglue_dataset.py`, the directory layout matches the on-disk format the trainer expects:
 
 ```
-data/training/
+data/lightglue/lightglue_dinov3_vits/
 ├── images/
-│   ├── shelf_001.jpg
+│   ├── seq001_01.jpg
 │   └── ...
 ├── annotations/
-│   ├── shelf_001.json      # {"products": [{"product_id": 0, "bbox": [x1,y1,x2,y2], "embedding": [...]}]}
+│   ├── seq001_01.json      # {"products": [{"product_id": 0, "bbox": [x1,y1,x2,y2], "embedding": [...]}]}
 │   └── ...
-└── matches.json            # {"pairs": [{"image0": "shelf_001", "image1": "shelf_002", "matches": [[0,0], [2,1]]}]}
+└── matches.json            # {"pairs": [{"image0": "seq001_01", "image1": "seq001_02", "matches": [[0,0], [2,1]]}]}
 ```
-
-Each annotation file contains product detections with pre-extracted DINO embeddings. The `matches.json` file defines ground truth product correspondences between image pairs.
 
 ### Run Training
 
 ```bash
 # DINOv3 ViT-S (384-dim, default)
-uv run python train_lightglue.py --data_dir data/training --input_dim 384
+uv run python train_lightglue.py \
+    --data_dir data/lightglue/lightglue_dinov3_vits \
+    --input_dim 384
+
+# DINOv3 ViT-B (768-dim)
+uv run python train_lightglue.py \
+    --data_dir data/lightglue/lightglue_dinov3_vitb \
+    --input_dim 768
+
+# DINOv3 ViT-L (1024-dim)
+uv run python train_lightglue.py \
+    --data_dir data/lightglue/lightglue_dinov3_vitl \
+    --input_dim 1024
 ```
 
 Checkpoints are saved to `outputs/lightglue/` (configurable via `--output_dir`). The best model is saved as `lightglue_best.tar`.

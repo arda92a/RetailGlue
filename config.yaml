@@ -64,7 +64,7 @@ benchmark:
 # ── LightGlue Training ────────────────────────────────────────────────────────
 training:
   data:
-    data_dir: data/training               # Directory with images/, annotations/, matches.json
+    data_dir: data/lightglue/lightglue_dinov3_vits  # Directory with images/, annotations/, matches.json
     embedding_dim: 384                     # Must match model.input_dim
     max_products: 400                      # Max products per view (padded)
     train_ratio: 0.7
